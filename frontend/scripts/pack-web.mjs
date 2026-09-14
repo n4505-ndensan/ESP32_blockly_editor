@@ -26,9 +26,6 @@ async function collect(directory, prefix = "") {
       : original;
     const useGzip = compressed.length < original.length;
     const targetPath = relativePath + (useGzip ? ".gz" : "");
-    if (Buffer.byteLength(`/web/${targetPath}`, "utf8") > 31) {
-      throw new Error(`SPIFFS path exceeds 31 bytes: /web/${targetPath}`);
-    }
 
     originalBytes += original.length;
     files.push({ path: targetPath, content: useGzip ? compressed : original });

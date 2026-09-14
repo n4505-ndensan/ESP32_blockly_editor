@@ -11,7 +11,7 @@
     "Segoe UI",
     sans-serif;
   color: #15201c;
-  background: #f3f5f4;
+  background: #e7e9e8;
   font-synthesis: none;
   line-height: 1.6;
   min-height: 100dvh;
@@ -53,9 +53,11 @@ p {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  background: #fff;
   gap: 16px;
-  padding: 16px;
+  padding: 12px 18px;
   border: 1px solid #222222;
+  border-top: none;
 }
 
 .header-title {
@@ -124,6 +126,7 @@ h2 {
   background: #fff;
   border: 1px solid #222222;
   border-top: none;
+  border-bottom: none;
 }
 
 .panel-heading {
@@ -331,9 +334,7 @@ h2 {
 .editor-panel {
   overflow: hidden;
   height: 100%;
-  border: 1px solid #222222;
-  border-top: none;
-  border-right: none;
+  border-left: 1px solid #222222;
 }
 
 .blockly-editor {

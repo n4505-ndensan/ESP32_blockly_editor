@@ -46,14 +46,15 @@ ESP32を自動検出しているわけではないため、別のサーバーへ
 ビルド時に内容を置き換える。手書きのファイルは置かない。
 `scripts/pack-web.mjs`でHTML・JS・CSSを圧縮し、容量が減るファイルは`.gz`だけを実機用に配置する。
 Blocklyの画像・SVG・音声はそのままコピーする。ESP32は圧縮済みデータを配信し、ブラウザが展開する。
-JS・CSSの出力名はハッシュを使って短くし、SPIFFSのパス長上限31バイトを超えたらビルドを中断する。
-方式の理由は[ADR 0003](../adr/0003-precompressed-web-assets.md)を参照。
+JS・CSSの出力名はハッシュを使って短くする。
+圧縮方式の理由は[ADR 0003](../adr/0003-precompressed-web-assets.md)、
+LittleFSへの移行は[ADR 0004](../adr/0004-littlefs-web-storage.md)を参照。
 依存関係は`pnpm-lock.yaml`で固定し、生成物と`node_modules/`はGit管理しない。
 Blockly素材は開発・ビルド時にパッケージから`static/media/`へ自動コピーする。外部CDNは使わない。
 
 ## ESP32での確認
 
-ファームウェアはSPIFFSの`/web/`から画面とJS・CSSを配信し、同じESP32の`/events`へ接続する。
+ファームウェアはLittleFSの`/web/`から画面とJS・CSSを配信し、同じESP32の`/events`へ接続する。
 ESPAsyncWebServerが通常のURLに対して`.gz`ファイルを見つけ、`Content-Encoding: gzip`付きで返す。
 URLに`.gz`を付ける必要はない。
 部品の一覧は`GET /api/devices`で取り、状態は`/events`の`devices`イベントで受ける。
@@ -66,6 +67,15 @@ pio run -e esp32dev -t upload
 pio run -e esp32dev -t uploadfs
 pio device monitor
 ```
+
+SPIFFSから移行する際も、上記の`upload`と`uploadfs`の両方を実行する。
+旧SPIFFSの内容は自動変換されず、`uploadfs`でLittleFSイメージに置き換わる。
+ファームウェアだけを書き込んだ直後はマウントに失敗するので、続けて`uploadfs`を実行する。
+マウント失敗時はシリアルに案内を出し、自動フォーマットは行わない。
+
+`platformio.ini`の`board_build.filesystem = littlefs`により、FSイメージは
+`.pio/build/esp32dev/littlefs.bin`として生成される。
+既定のパーティション名は互換性のため`spiffs`のままだが、その領域にLittleFS形式を書き込む。
 
 `buildfs`・`uploadfs`は`scripts/build_frontend.py`が前処理として`frontend/`で`pnpm build`を実行するため、
 手動でのビルドは不要になった。型検査やビルドが失敗した場合はファイルシステムイメージを作らずに中断する。
@@ -94,7 +104,7 @@ frontend/
     blockly/deviceBlocks.ts          # 部品と待機の固定ブロック定義
     program/                         # 将来のAST変換・検証
   vite.config.ts
-  scripts/pack-web.mjs               # 圧縮・実機用ファイルの配置とパス長検査
+  scripts/pack-web.mjs               # 圧縮・実機用ファイルの配置
   dist/                             # 自動生成したプレビュー用ファイル（未圧縮）
   pnpm-lock.yaml
 adr/                                 # 設計判断の記録

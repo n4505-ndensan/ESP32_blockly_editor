@@ -11,7 +11,7 @@ export default defineConfig({
     emptyOutDir: true,
     rolldownOptions: {
       output: {
-        // SPIFFS allows 31 bytes including directories; leave room for .gz.
+        // Keep compact, content-hashed URLs for deployed assets.
         entryFileNames: "assets/[hash].js",
         chunkFileNames: "assets/[hash].js",
         assetFileNames: "assets/[hash][extname]",

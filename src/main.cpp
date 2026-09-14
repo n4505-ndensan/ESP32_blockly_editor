@@ -2,7 +2,7 @@
 #include <FS.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <SPIFFS.h>
+#include <LittleFS.h>
 #include <secrets.h>
 
 #include <api/device_api.h>
@@ -42,10 +42,10 @@ void setup()
 
   initDevices();
 
-  // SPIFFSのセットアップ
-  if (!SPIFFS.begin(true))
+  // uploadfsで書き込んだLittleFSを使う。失敗しても自動フォーマットしない。
+  if (!LittleFS.begin(false))
   {
-    Serial.println("An Error has occurred while mounting SPIFFS");
+    Serial.println("LittleFS mount failed. Upload the LittleFS image with 'pio run -t uploadfs'.");
     return;
   }
 
@@ -70,7 +70,7 @@ void setup()
   registerDeviceApi(server);
 
   // Serve the SolidJS build and its assets; keep /events on the SSE handler.
-  server.serveStatic("/", SPIFFS, "/web/").setDefaultFile("index.html");
+  server.serveStatic("/", LittleFS, "/web/").setDefaultFile("index.html");
 
   server.begin();
 }

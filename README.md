@@ -7,6 +7,7 @@ SolidJS・TypeScript・Viteの画面を`frontend/`に配置しています。パ
 センサ表示・部品の操作とBlocklyを並べたレイアウトです。Blocklyは現在、編集のみ利用できます。
 ビルド成果物は`frontend/dist/`へ出力し、HTML・JS・CSSをgzip圧縮して実機用の`data/web/`へ配置します。
 `pio run -t buildfs`・`-t uploadfs`は前処理として`frontend/`の`pnpm build`を自動実行します。
+実機のWeb素材はLittleFSに保存します。SPIFFSからの移行時は`upload`と`uploadfs`の両方が必要です。
 セットアップとコマンドは[frontend/README.md](frontend/README.md)を参照してください。
 
 ## 部品の操作
