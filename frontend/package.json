@@ -1,0 +1,26 @@
+{
+  "name": "esp32-blockly-editor",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "packageManager": "pnpm@10.30.2",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "prepare:media": "node scripts/prepare-blockly-media.mjs",
+    "dev": "pnpm prepare:media && vite",
+    "check": "tsc --noEmit",
+    "build": "pnpm check && pnpm prepare:media && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "blockly": "^13.3.0",
+    "solid-js": "^1.9.15"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.3",
+    "vite": "^8.3.0",
+    "vite-plugin-solid": "^2.11.14"
+  }
+}

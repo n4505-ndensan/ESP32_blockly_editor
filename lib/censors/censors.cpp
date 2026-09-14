@@ -3,7 +3,6 @@
 
 VL53L1X vl53l1x;
 Adafruit_AMG88xx amg;
-float AMG8833_temperature = 0;
 float AMG8833_pixels[AMG88xx_PIXEL_ARRAY_SIZE];
 
 // ToFセンサーから対象物までの距離取得
@@ -14,9 +13,6 @@ int getDistanceData()
     if (vl53l1x.timeoutOccurred())
         sid4 = 0;
 
-    // Serial.print("distance:");
-    // Serial.println(sid4);
-
     return sid4;
 }
 
@@ -25,7 +21,6 @@ float getThermoData()
 {
     float temp = 0.0;
     // 赤外線センサーから温度を取得
-    AMG8833_temperature = amg.readThermistor();
     amg.readPixels(AMG8833_pixels);
     for (int i = 0; i < AMG88xx_PIXEL_ARRAY_SIZE; i++)
     {
@@ -34,9 +29,6 @@ float getThermoData()
             temp = AMG8833_pixels[i];
         }
     }
-
-    // Serial.print("temperature:");
-    // Serial.println(temp);
 
     return temp;
 }
@@ -63,7 +55,7 @@ void initDistance()
     {
         Serial.println("VL53L1 初期化成功");
     }
-    vl53l1x.read();
+    vl53l1x.readRangeSingleMillimeters(10);
 }
 
 void initCensors()

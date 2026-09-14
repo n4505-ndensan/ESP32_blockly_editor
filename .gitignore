@@ -10,3 +10,8 @@
 
 # do not remove this!!!
 secrets.h
+
+# Frontend dependencies and generated files
+frontend/node_modules/
+frontend/static/media/
+data/web/
