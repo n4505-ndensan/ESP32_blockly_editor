@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Hello World</title>
+  </head>
+  <body>
+    <h1>Hello World</h1>
+
+    <p>temperature <span id="temperature">--</span>℃</p>
+    <p>distance <span id="distance">--</span>mm</p>
+  </body>
+
+  <script>
+    if (!!window.EventSource) {
+      var source = new EventSource("/events");
+
+      source.addEventListener(
+        "temperature",
+        function (e) {
+          console.log("temperature", e.data);
+          document.getElementById("temperature").innerHTML = e.data;
+        },
+        false,
+      );
+
+      source.addEventListener(
+        "distance",
+        function (e) {
+          console.log("distance", e.data);
+          document.getElementById("distance").innerHTML = e.data;
+        },
+        false,
+      );
+    }
+  </script>
+</html>
