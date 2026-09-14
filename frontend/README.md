@@ -34,7 +34,7 @@ pnpm preview
 ```
 
 - `check`: TypeScriptの型検査。
-- `build`: 型検査とBlockly素材の準備後、`../data/web/`へHTML・JS・CSS・素材を出力する。
+- `build`: 型検査とBlockly素材の準備後、`dist/`へビルドし、gzip圧縮した実機用ファイルを`../data/web/`へ出力する。
 - `preview`: ビルド成果物をPC上で確認する。localhost・127.0.0.1・[::1]で開いた場合はダミー値を表示する。
 
 データ元は、Vite開発モードかローカルのプレビューならダミー、それ以外のビルド配信ではSSEとする。
@@ -42,13 +42,20 @@ ESP32を自動検出しているわけではないため、別のサーバーへ
 実機への接続が失敗してもダミー値には切り替えず、接続状態と`--`を表示する。
 ダミーのときはスイッチも手元の状態だけが変わり、ESP32へは通信しない。
 
-`data/web/`は自動生成専用で、ビルド時に内容を置き換える。手書きのファイルは置かない。
+`dist/`はプレビュー用の未圧縮成果物、`data/web/`は実機用の成果物。どちらも自動生成専用で、
+ビルド時に内容を置き換える。手書きのファイルは置かない。
+`scripts/pack-web.mjs`でHTML・JS・CSSを圧縮し、容量が減るファイルは`.gz`だけを実機用に配置する。
+Blocklyの画像・SVG・音声はそのままコピーする。ESP32は圧縮済みデータを配信し、ブラウザが展開する。
+JS・CSSの出力名はハッシュを使って短くし、SPIFFSのパス長上限31バイトを超えたらビルドを中断する。
+方式の理由は[ADR 0003](../adr/0003-precompressed-web-assets.md)を参照。
 依存関係は`pnpm-lock.yaml`で固定し、生成物と`node_modules/`はGit管理しない。
 Blockly素材は開発・ビルド時にパッケージから`static/media/`へ自動コピーする。外部CDNは使わない。
 
 ## ESP32での確認
 
 ファームウェアはSPIFFSの`/web/`から画面とJS・CSSを配信し、同じESP32の`/events`へ接続する。
+ESPAsyncWebServerが通常のURLに対して`.gz`ファイルを見つけ、`Content-Encoding: gzip`付きで返す。
+URLに`.gz`を付ける必要はない。
 部品の一覧は`GET /api/devices`で取り、状態は`/events`の`devices`イベントで受ける。
 取得できた温度は℃、距離はmmで表示する。初回はファームウェアとファイルシステムの両方の書き込みが必要。
 
@@ -87,6 +94,8 @@ frontend/
     blockly/deviceBlocks.ts          # 部品と待機の固定ブロック定義
     program/                         # 将来のAST変換・検証
   vite.config.ts
+  scripts/pack-web.mjs               # 圧縮・実機用ファイルの配置とパス長検査
+  dist/                             # 自動生成したプレビュー用ファイル（未圧縮）
   pnpm-lock.yaml
 adr/                                 # 設計判断の記録
 data/web/                            # 自動生成した配信用ファイル

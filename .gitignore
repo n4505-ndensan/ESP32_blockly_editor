@@ -13,5 +13,6 @@ secrets.h
 
 # Frontend dependencies and generated files
 frontend/node_modules/
+frontend/dist/
 frontend/static/media/
 data/web/

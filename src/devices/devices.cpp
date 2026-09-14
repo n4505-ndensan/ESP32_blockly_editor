@@ -1,23 +1,12 @@
 #include "devices.h"
+#include "sensors.h"
 
 #include <atomic>
 #include <math.h>
 #include <string.h>
 
-#include <censors.h>
-
 namespace
 {
-    float readTemperature()
-    {
-        return getThermoData();
-    }
-
-    float readDistance()
-    {
-        return static_cast<float>(getDistanceData());
-    }
-
     // 部品の一覧。増やすときはこの表に1行足す。
     const DeviceDescriptor kDevices[] = {
         {"led_white", "白色LED", "", "", DeviceKind::Output, DeviceControl::Switch, 18, false, 0.0f, nullptr},
@@ -70,7 +59,7 @@ void initDevices()
             writePin(kDevices[i], false);
     }
 
-    initCensors();
+    initSensors();
     delay(400);
 }
 

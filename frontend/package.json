@@ -11,7 +11,7 @@
     "prepare:media": "node scripts/prepare-blockly-media.mjs",
     "dev": "pnpm prepare:media && vite",
     "check": "tsc --noEmit",
-    "build": "pnpm check && pnpm prepare:media && vite build",
+    "build": "pnpm check && pnpm prepare:media && vite build && node scripts/pack-web.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

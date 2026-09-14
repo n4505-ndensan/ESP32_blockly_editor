@@ -7,7 +7,15 @@ export default defineConfig({
   base: "./",
   build: {
     // Generated files only; replaced on each build.
-    outDir: "../data/web",
+    outDir: "dist",
     emptyOutDir: true,
+    rolldownOptions: {
+      output: {
+        // SPIFFS allows 31 bytes including directories; leave room for .gz.
+        entryFileNames: "assets/[hash].js",
+        chunkFileNames: "assets/[hash].js",
+        assetFileNames: "assets/[hash][extname]",
+      },
+    },
   },
 });

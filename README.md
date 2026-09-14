@@ -5,7 +5,7 @@
 SolidJS・TypeScript・Viteの画面を`frontend/`に配置しています。パッケージ管理にはpnpmを使います。
 開発時はダミー値、ESP32から配信したときはSSEで温度・距離を表示します。
 センサ表示・部品の操作とBlocklyを並べたレイアウトです。Blocklyは現在、編集のみ利用できます。
-ビルド成果物は`data/web/`へ出力します。
+ビルド成果物は`frontend/dist/`へ出力し、HTML・JS・CSSをgzip圧縮して実機用の`data/web/`へ配置します。
 `pio run -t buildfs`・`-t uploadfs`は前処理として`frontend/`の`pnpm build`を自動実行します。
 セットアップとコマンドは[frontend/README.md](frontend/README.md)を参照してください。
 

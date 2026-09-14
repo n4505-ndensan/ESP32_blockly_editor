@@ -9,3 +9,5 @@
 | 番号 | タイトル | ステータス |
 | --- | --- | --- |
 | [0001](0001-device-state-and-control.md) | 部品の状態表示と操作 | 採用 |
+| [0002](0002-nonblocking-distance-sampling.md) | 距離センサの非ブロッキング読み取り | 採用 |
+| [0003](0003-precompressed-web-assets.md) | Web素材をビルド時にgzip圧縮する | 採用 |
