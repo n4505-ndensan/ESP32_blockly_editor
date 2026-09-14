@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js";
+import { createMemo, For, Show } from "solid-js";
 import type { DeviceStore } from "../device/createDeviceStore";
 
 export default function SensorPanel(props: { store: DeviceStore }) {
@@ -15,24 +15,31 @@ export default function SensorPanel(props: { store: DeviceStore }) {
 
       <div class="sensor-readings">
         <For each={sensors()}>
-          {(device) => (
-            <section
-              class="sensor-reading"
-              aria-labelledby={`${device.id}-label`}
-            >
-              <h3 id={`${device.id}-label`}>
-                <span class={`sensor-mark ${device.id}-mark`} />
-                {device.label}
-              </h3>
-              <p class="sensor-value">
-                <span id={device.id}>{device.state.value ?? "--"}</span>
-                <span class="unit">{device.unit}</span>
-              </p>
-              <Show when={device.description}>
-                <p class="sensor-caption">{device.description}</p>
-              </Show>
-            </section>
-          )}
+          {(device) => {
+            let value = createMemo(() =>
+              device.id !== "temperature"
+                ? device.state.value
+                : device.state.value?.toFixed(2),
+            );
+            return (
+              <section
+                class="sensor-reading"
+                aria-labelledby={`${device.id}-label`}
+              >
+                <h3 id={`${device.id}-label`}>
+                  <span class={`sensor-mark ${device.id}-mark`} />
+                  {device.label}
+                </h3>
+                <p class="sensor-value">
+                  <span id={device.id}>{value() ?? "--"}</span>
+                  <span class="unit">{device.unit}</span>
+                </p>
+                <Show when={device.description}>
+                  <p class="sensor-caption">{device.description}</p>
+                </Show>
+              </section>
+            );
+          }}
         </For>
       </div>
 

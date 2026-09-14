@@ -1,0 +1,406 @@
+@import url("https://fonts.googleapis.com/css2?family=Unbounded:wght@200..900&display=swap");
+
+* {
+  box-sizing: border-box;
+}
+
+:root {
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  color: #15201c;
+  background: #e7e9e8;
+  font-synthesis: none;
+  line-height: 1.6;
+  min-height: 100dvh;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+/* main */
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0;
+  min-height: 100dvh;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  gap: 16px;
+  padding: 12px 18px;
+  border: 1px solid #222222;
+  border-top: none;
+}
+
+.header-title {
+  font-family: "Unbounded";
+}
+
+.run-button {
+  flex-shrink: 0;
+  padding: 7px 12px;
+  border: 1px solid #d3dfd9;
+  border-radius: 8px;
+  background: #2090ff;
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-family: "Unbounded";
+  cursor: pointer;
+}
+
+.run-button:hover:not(:disabled) {
+  background: #1b7ad8;
+}
+.run-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+h1 {
+  font-size: clamp(22px, 3vw, 28px);
+  font-weight: 650;
+  font-family: "Unbounded";
+}
+h2 {
+  font-size: 16px;
+  font-weight: 650;
+  font-family: "Unbounded";
+}
+
+.workspace-layout {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  align-items: start;
+}
+
+.panel {
+  min-width: 0;
+  background: #fff;
+  box-shadow: 0 3px 12px #20382d05;
+
+  border-bottom: 1px solid #222222;
+}
+
+.panel:last-child {
+  border-bottom: none;
+}
+
+.side-column {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+  height: 100%;
+  flex: 1;
+  background: #fff;
+  border: 1px solid #222222;
+  border-top: none;
+  border-bottom: none;
+}
+
+.panel-heading {
+  padding: 22px 24px;
+}
+.sensor-readings {
+  padding: 0 24px;
+}
+.sensor-reading {
+  padding: 20px 0 24px;
+  border-top: 1px solid #edf0ee;
+}
+.sensor-reading h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.sensor-mark {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.temperature-mark {
+  background: #c87c59;
+}
+.distance-mark {
+  background: #5a8ca8;
+}
+
+.sensor-value {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 6px 0;
+  font-size: 38px;
+  font-weight: 550;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+.unit {
+  color: #75857b;
+  font-size: 15px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.sensor-caption {
+  color: #6d7d73;
+  font-size: 11px;
+}
+
+.sensor-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 24px;
+  border-top: 1px solid #edf0ee;
+  color: #63786b;
+  font-size: 12px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: #b88738;
+}
+.status-dot-ready {
+  background: #438568;
+}
+
+.device-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ghost-button {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border: 1px solid #d3dfd9;
+  border-radius: 8px;
+  background: #fff;
+  color: #486557;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.ghost-button:hover:not(:disabled) {
+  background: #eef3f0;
+}
+.ghost-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.device-list {
+  margin: 0;
+  padding: 0 24px;
+  list-style: none;
+}
+.device-empty {
+  padding: 12px 0;
+  border-top: 1px solid #edf0ee;
+  color: #7b8b81;
+  font-size: 11px;
+}
+
+.device-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-top: 1px solid #edf0ee;
+}
+
+.device-label {
+  font-size: 13px;
+}
+
+.device-switch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #7b8b81;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* 送信中はESP32の応答待ち。確定するまで表示を変えない。 */
+.device-switch:disabled {
+  cursor: progress;
+  opacity: 0.55;
+}
+.device-switch-on {
+  color: #2f6a51;
+}
+.device-switch-text {
+  width: 2.4em;
+  text-align: left;
+}
+
+.device-switch-track {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: #d7dfda;
+  transition: background 120ms ease;
+}
+
+.device-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px #20382d33;
+  transition: transform 120ms ease;
+}
+
+.device-switch-on .device-switch-track {
+  background: #438568;
+}
+.device-switch-on .device-switch-thumb {
+  transform: translateX(16px);
+}
+.device-switch:focus-visible {
+  outline: none;
+}
+.device-switch:focus-visible .device-switch-track {
+  outline: 2px solid #438568;
+  outline-offset: 2px;
+}
+
+.device-error {
+  padding: 10px 24px;
+  border-top: 1px solid #f0ded9;
+  background: #fbf1ef;
+  color: #9d4b3f;
+  font-size: 11px;
+}
+
+.device-note {
+  padding: 12px 24px;
+  border-top: 1px solid #edf0ee;
+  color: #718077;
+  font-size: 11px;
+}
+.editor-panel {
+  overflow: hidden;
+  height: 100%;
+  border-left: 1px solid #222222;
+}
+
+.blockly-editor {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  isolation: isolate;
+}
+
+.blockly-editor .blocklySvg {
+  border: 0;
+}
+
+/* 以下、初期のデザインから一切変更されていないため注意
+   レスポンシブ対応を行う場合initコミット~現在におけるスタイルの差分を見て更新すること。 */
+@media (max-width: 900px) {
+  .workspace-layout {
+    grid-template-columns: 220px minmax(0, 1fr);
+    gap: 16px;
+  }
+  .side-column {
+    gap: 16px;
+  }
+  .device-list {
+    padding-inline: 20px;
+  }
+  .device-error,
+  .device-note {
+    padding-inline: 20px;
+  }
+}
+
+@media (max-width: 720px) {
+  .app-shell {
+    padding-top: 20px;
+  }
+  .app-header {
+    margin-bottom: 20px;
+  }
+  .workspace-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .panel-heading {
+    padding: 16px 20px;
+  }
+  .sensor-readings {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+    padding: 0 20px;
+  }
+  .sensor-reading {
+    padding: 12px 0 16px;
+  }
+  .sensor-value {
+    font-size: clamp(24px, 7vw, 34px);
+  }
+  .sensor-status {
+    padding: 10px 20px;
+  }
+  .device-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 20px;
+  }
+  .blockly-editor {
+    height: 480px;
+  }
+}

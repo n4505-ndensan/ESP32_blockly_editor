@@ -5,6 +5,9 @@ export default defineConfig({
   plugins: [solid()],
   publicDir: "static",
   base: "./",
+  server: {
+    port: 3300,
+  },
   build: {
     // Generated files only; replaced on each build.
     outDir: "dist",
