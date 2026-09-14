@@ -1,9 +1,10 @@
-import { onCleanup, onMount } from "solid-js";
+import { createEffect, onCleanup, onMount } from "solid-js";
 import * as Blockly from "blockly/core";
 import { blocks } from "blockly/blocks";
 import * as ja from "blockly/msg/ja";
 import "../blockly/deviceBlocks";
-import { toolbox } from "../blockly/toolbox";
+import { createToolbox } from "../blockly/toolbox";
+import { deviceStore } from "../store/deviceStore";
 
 Blockly.setLocale(ja);
 Blockly.common.defineBlocks(blocks);
@@ -30,12 +31,12 @@ export default function BlocklyEditor() {
 
   onMount(() => {
     workspace = Blockly.inject(container, {
-      toolbox,
+      toolbox: createToolbox(deviceStore.devices),
       theme,
       media: `${import.meta.env.BASE_URL}media/`,
       sounds: false,
       trashcan: true,
-      grid: { spacing: 24, length: 2, colour: "#d9e3df", snap: false },
+      grid: { spacing: 24, length: 4, colour: "#b5bebb", snap: false },
       move: { scrollbars: true, drag: true, wheel: true },
       zoom: { controls: true, wheel: true, startScale: 0.9 },
     });
@@ -45,6 +46,12 @@ export default function BlocklyEditor() {
       if (workspace) Blockly.svgResize(workspace);
     });
     resizeObserver.observe(container);
+  });
+
+  // カタログはESP32から遅れて届く。届いた分だけ部品カテゴリを作り直す。
+  createEffect(() => {
+    const toolbox = createToolbox(deviceStore.devices);
+    workspace?.updateToolbox(toolbox);
   });
 
   onCleanup(() => {

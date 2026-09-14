@@ -1,11 +1,10 @@
 import { For, Show } from "solid-js";
-import type { DeviceStore } from "../device/createDeviceStore";
+import { deviceStore, isPending } from "../store/deviceStore";
+import { setOutput, turnAllOff } from "../device/actions";
 
-export default function DeviceDirectControlPanel(props: {
-  store: DeviceStore;
-}) {
+export default function DeviceDirectControlPanel() {
   const outputs = () =>
-    props.store.devices.filter((device) => device.control === "switch");
+    deviceStore.devices.filter((device) => device.control === "switch");
   const anyOn = () => outputs().some((device) => device.state.on === true);
 
   return (
@@ -18,7 +17,7 @@ export default function DeviceDirectControlPanel(props: {
           type="button"
           class="ghost-button"
           disabled={!anyOn()}
-          onClick={() => void props.store.turnAllOff()}
+          onClick={() => void turnAllOff()}
         >
           すべて消す
         </button>
@@ -31,7 +30,7 @@ export default function DeviceDirectControlPanel(props: {
         >
           {(device) => {
             const on = () => device.state.on === true;
-            const pending = () => props.store.isPending(device.id);
+            const pending = () => isPending(device.id);
 
             return (
               <li class="device-row">
@@ -48,7 +47,7 @@ export default function DeviceDirectControlPanel(props: {
                   aria-label={`${device.label}を${on() ? "消す" : "つける"}`}
                   disabled={pending()}
                   // 表示中の状態から「したい状態」を決めて送る。反転はESP32側に任せない。
-                  onClick={() => void props.store.setOutput(device.id, !on())}
+                  onClick={() => void setOutput(device.id, !on())}
                 >
                   <span class="device-switch-track">
                     <span class="device-switch-thumb" />
@@ -61,7 +60,7 @@ export default function DeviceDirectControlPanel(props: {
         </For>
       </ul>
 
-      <Show when={props.store.error()}>
+      <Show when={deviceStore.error}>
         {(message) => (
           <p class="device-error" role="alert">
             {message()}

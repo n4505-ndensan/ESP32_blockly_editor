@@ -1,7 +1,15 @@
 # 部品の状態と操作
 
-`createDeviceStore.ts`が、部品の一覧・状態・操作をまとめて扱う。
+部品の一覧・状態・操作は3つに分かれている。
 センサも出力部品も同じ一覧に入り、違いは`control`が`switch`か`none`かだけになる。
+
+- `store/deviceStore.ts`：状態そのものと、それを書き換えるための最小の関数。
+  `setDeviceStore`は外に出さないので、更新経路はここに列挙されたものだけになる。
+  ダミーか実機かを表す`deviceSource`は起動後に変わらないため、ストアに入れず定数で持つ。
+- `connection.ts`：ESP32からストアへ流し込む側。カタログの取得・SSE・ダミー値の生成。
+- `actions.ts`：画面からの操作。`setOutput`と`turnAllOff`だけ。
+
+どれも`store/deviceStore.ts`へ一方向に依存する。
 
 - Vite開発時、またはlocalhost・127.0.0.1・[::1]のプレビュー時：
   `dummyCatalog.ts`の仮の一覧を使い、センサ値を1秒ごとに更新する。ESP32へ通信しない。

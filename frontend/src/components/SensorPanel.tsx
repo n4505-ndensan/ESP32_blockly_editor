@@ -1,11 +1,11 @@
 import { createMemo, For, Show } from "solid-js";
-import type { DeviceStore } from "../device/createDeviceStore";
+import { deviceSource, deviceStore } from "../store/deviceStore";
 
-export default function SensorPanel(props: { store: DeviceStore }) {
+export default function SensorPanel() {
   const sensors = () =>
-    props.store.devices.filter((device) => device.kind === "sensor");
+    deviceStore.devices.filter((device) => device.kind === "sensor");
   const connected = () =>
-    props.store.source === "dummy" || props.store.status() === "接続済み";
+    deviceSource === "dummy" || deviceStore.status === "接続済み";
 
   return (
     <aside class="sensor-panel panel" aria-labelledby="sensor-title">
@@ -48,7 +48,7 @@ export default function SensorPanel(props: { store: DeviceStore }) {
           class="status-dot"
           classList={{ "status-dot-ready": connected() }}
         />
-        {props.store.status()}
+        {deviceStore.status}
       </div>
     </aside>
   );
