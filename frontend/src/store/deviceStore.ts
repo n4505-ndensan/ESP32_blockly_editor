@@ -12,9 +12,17 @@ const localPreview = ["localhost", "127.0.0.1", "[::1]"].includes(
 export const deviceSource: DeviceSource =
   import.meta.env.DEV || localPreview ? "dummy" : "sse";
 
+export enum DeviceStatus {
+  CONNECTING = "接続中…",
+  CONNECTED = "接続済み",
+  LOCAL_DEV_DUMMY = "ダミー値を表示中",
+  CONNECTION_ERROR = "接続エラー",
+  RECONNECTING = "再接続中…",
+}
+
 export type DeviceStore = {
   devices: Device[];
-  status: string;
+  status: DeviceStatus;
   error: string | null;
   pendingIds: string[];
 };
@@ -22,7 +30,7 @@ export type DeviceStore = {
 // 書き換えはこのファイルのプリミティブ経由に限る。setterは外へ出さない。
 const [deviceStore, setDeviceStore] = createStore<DeviceStore>({
   devices: [],
-  status: "接続中…",
+  status: DeviceStatus.CONNECTING,
   error: null,
   pendingIds: [],
 });
@@ -62,7 +70,8 @@ export const clearSensorValues = () => {
   );
 };
 
-export const setStatus = (status: string) => setDeviceStore("status", status);
+export const setStatus = (status: DeviceStatus) =>
+  setDeviceStore("status", status);
 
 export const setError = (error: string | null) =>
   setDeviceStore("error", error);

@@ -130,13 +130,13 @@ h2 {
 }
 
 .panel-heading {
-  padding: 22px 24px;
+  padding: 12px 16px;
 }
 .sensor-readings {
   padding: 0 24px;
 }
 .sensor-reading {
-  padding: 20px 0 24px;
+  padding: 16px 0;
   border-top: 1px solid #edf0ee;
 }
 .sensor-reading h3 {
@@ -145,6 +145,11 @@ h2 {
   gap: 8px;
   font-size: 13px;
   font-weight: 500;
+}
+.sensor-caption {
+  color: #6d7d73;
+  font-size: 11px;
+  margin-left: auto;
 }
 .sensor-mark {
   width: 8px;
@@ -175,10 +180,6 @@ h2 {
   font-size: 15px;
   font-weight: 400;
   letter-spacing: 0;
-}
-.sensor-caption {
-  color: #6d7d73;
-  font-size: 11px;
 }
 
 .sensor-status {

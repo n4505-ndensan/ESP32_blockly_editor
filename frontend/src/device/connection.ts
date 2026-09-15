@@ -3,6 +3,7 @@ import {
   applyStates,
   clearSensorValues,
   deviceSource,
+  DeviceStatus,
   deviceStore,
   replaceCatalog,
   setError,
@@ -30,7 +31,7 @@ const loadCatalog = async () => {
 
 const startDummy = (cleanups: (() => void)[]) => {
   replaceCatalog(dummyCatalog());
-  setStatus("ダミー値を表示中");
+  setStatus(DeviceStatus.LOCAL_DEV_DUMMY);
 
   let tick = 0;
   const update = () => {
@@ -48,13 +49,17 @@ const connect = (cleanups: (() => void)[]) => {
   cleanups.push(() => events.close());
 
   events.addEventListener("open", () => {
-    setStatus("接続済み");
+    setStatus(DeviceStatus.CONNECTED);
     // 起動直後にカタログの取得が失敗していた場合に備え、空のままなら取り直す。
     if (deviceStore.devices.length === 0) void loadCatalog();
   });
 
   events.addEventListener("error", () => {
-    setStatus(events.readyState === EventSource.CLOSED ? "接続エラー" : "再接続中…");
+    setStatus(
+      events.readyState === EventSource.CLOSED
+        ? DeviceStatus.CONNECTION_ERROR
+        : DeviceStatus.RECONNECTING,
+    );
     // 古い測定値は残さない。出力の状態はESP32が再接続時に送り直す。
     clearSensorValues();
   });
