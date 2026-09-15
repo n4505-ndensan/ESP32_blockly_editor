@@ -2,7 +2,7 @@ import { For, Show } from "solid-js";
 import { deviceStore, isPending } from "../store/deviceStore";
 import { setOutput, turnAllOff } from "../device/actions";
 
-export default function DeviceDirectControlPanel() {
+export default function DeviceControlPanel() {
   const outputs = () =>
     deviceStore.devices.filter((device) => device.control === "switch");
   const anyOn = () => outputs().some((device) => device.state.on === true);
@@ -11,8 +11,9 @@ export default function DeviceDirectControlPanel() {
     <aside class="device-panel panel" aria-labelledby="device-title">
       <div class="panel-heading device-heading">
         <div>
-          <h2 id="device-title">部品</h2>
+          <h2 id="device-title">Parts / 部品</h2>
         </div>
+
         <button
           type="button"
           class="ghost-button"
@@ -22,6 +23,8 @@ export default function DeviceDirectControlPanel() {
           すべて消す
         </button>
       </div>
+
+      <p class="device-description">部品の手動操作</p>
 
       <ul class="device-list">
         <For

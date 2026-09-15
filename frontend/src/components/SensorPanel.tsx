@@ -11,7 +11,7 @@ export default function SensorPanel() {
   return (
     <aside class="sensor-panel panel" aria-labelledby="sensor-title">
       <div class="panel-heading">
-        <h2 id="sensor-title">センサ</h2>
+        <h2 id="sensor-title">Sensor / センサー</h2>
       </div>
 
       <div class="sensor-readings">

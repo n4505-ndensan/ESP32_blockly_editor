@@ -1,5 +1,5 @@
 import BlocklyEditor from "./components/BlocklyEditor";
-import DeviceDirectControlPanel from "./components/DeviceDirectControlPanel";
+import DeviceControlPanel from "./components/DeviceControlPanel";
 import SensorPanel from "./components/SensorPanel";
 import { initDeviceStore } from "./device/connection";
 
@@ -20,7 +20,7 @@ export default function App() {
 
         <div class="side-column">
           <SensorPanel />
-          <DeviceDirectControlPanel />
+          <DeviceControlPanel />
         </div>
       </div>
     </main>

@@ -95,7 +95,7 @@ frontend/
   src/
     App.tsx                          # 画面の組み立て
     components/SensorPanel.tsx       # 温度・距離と接続状態の表示
-    components/DeviceDirectControlPanel.tsx # LED・ブザーのON/OFF
+    components/DeviceControlPanel.tsx # LED・ブザーのON/OFF
     components/BlocklyEditor.tsx     # パネル内のBlocklyの生成・リサイズ・破棄
     device/createDeviceStore.ts      # 部品の一覧・状態・操作。ダミーとSSEの切り替え
     device/dummyCatalog.ts           # PCで触るための仮の部品一覧
