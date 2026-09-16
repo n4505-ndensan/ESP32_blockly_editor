@@ -130,7 +130,9 @@ class ProgramApiTests(unittest.TestCase):
         self.assertEqual(202, request("/api/program/run", program(on, forever))[0])
         self.wait_state("running")
         for _ in range(2):
-            with urllib.request.urlopen(base + "/events", timeout=5) as response:
+            # Match EventSource: ESPAsyncWebServer routes SSE by the Accept header.
+            stream = urllib.request.Request(base + "/events", headers={"Accept": "text/event-stream"})
+            with urllib.request.urlopen(stream, timeout=5) as response:
                 found = {}
                 name = ""
                 for _ in range(100):
@@ -155,6 +157,27 @@ class ProgramApiTests(unittest.TestCase):
         for _ in range(30):
             self.assertEqual(202, request("/api/program/run", program(on))[0]); self.wait_state("completed")
             request("/api/program/stop", {}); self.assertEqual(boot, self.wait_state("stopped")["bootId"])
+
+    def test_live_sensor_conditions(self):
+        # Exercise both branches with thresholds outside the physical range.
+        # This checks real sensor reads, not manual threshold crossing by a person.
+        _, catalog = request("/api/devices")
+        sensors = {d["id"]: d["state"] for d in catalog["devices"] if d["kind"] == "sensor"}
+        for sensor, output in (("distance", "led_red"), ("temperature", "buzzer")):
+            self.assertEqual("ok", sensors[sensor]["status"], sensors[sensor])
+            for threshold, expected in ((1000000, True), (-1000000, False)):
+                condition = {"type": "compare", "blockId": "condition", "op": "LT",
+                             "left": {"type": "sensor", "blockId": sensor, "deviceId": sensor},
+                             "right": {"type": "number", "blockId": "threshold", "value": threshold}}
+                branch = {"type": "if", "blockId": "if", "condition": condition,
+                          "then": [{"type": "set_output", "blockId": "yes", "deviceId": output, "on": True}],
+                          "else": [{"type": "set_output", "blockId": "no", "deviceId": output, "on": False}]}
+                try:
+                    self.assertEqual(202, request("/api/program/run", program(branch))[0])
+                    self.wait_state("completed")
+                    self.assertEqual(expected, self.outputs()[output])
+                finally:
+                    request("/api/program/stop", {}); self.wait_state("stopped")
 
 if __name__ == "__main__":
     unittest.main(argv=[__file__], verbosity=2)
