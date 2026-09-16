@@ -101,5 +101,17 @@ void loop()
     publishProgramChanges(events);
   }
 
+#ifdef PROGRAM_DIAGNOSTICS
+  static uint32_t lastDiagnostics = 0;
+  if (now - lastDiagnostics >= 1000)
+  {
+    lastDiagnostics = now;
+    const auto d = programDiagnostics();
+    // Serial output is outside all runtime/device locks. Not in production builds.
+    Serial.printf("ACCEPTANCE {\"bootId\":\"%s\",\"uptimeMs\":%lu,\"heap\":%u,\"minHeap\":%u,\"largestBlock\":%u,\"stopSamples\":%lu,\"maxStopUs\":%lu}\n",
+                  programBootId(), static_cast<unsigned long>(now), ESP.getFreeHeap(), ESP.getMinFreeHeap(), ESP.getMaxAllocHeap(),
+                  static_cast<unsigned long>(d.stopSamples), static_cast<unsigned long>(d.maxStopUs));
+  }
+#endif
   delay(5);
 }

@@ -23,6 +23,7 @@ Blocklyの開始ブロックにつながる処理をRUNでESP32へ送り、実�
 ## テスト
 
 現在の検証結果と実機側の残タスクは[実装基準点の記録](docs/program-execution-checkpoint.md)を参照してください。
+実機API・ブラウザ・停止時間・継続運転の結果と計測手順は[実機受け入れ記録](docs/hardware-acceptance.md)にまとめています。
 
 フロントエンドは`frontend/`で`pnpm test`（Vitest）、`pnpm test:watch`で監視します。
 実行器は`pio test -e runtime_test`（ESP32上のUnity）、またはWindowsで`python scripts/test_runtime.py`。

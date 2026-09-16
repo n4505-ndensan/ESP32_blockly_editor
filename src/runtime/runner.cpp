@@ -39,6 +39,10 @@ program::Engine engine(hardware, hardwareClock, wantsStop, nullptr);
 program::Lifecycle lifecycle;
 std::unique_ptr<program::Program> pending, active;
 char bootId[17];
+#ifdef PROGRAM_DIAGNOSTICS
+uint32_t stopRequestedAt = 0;
+ProgramDiagnostics diagnostics;
+#endif
 }
 void initProgramRuntime() {
     mutex = xSemaphoreCreateMutexStatic(&mutexBuffer);
@@ -53,9 +57,18 @@ bool submitProgram(std::unique_ptr<program::Program> &program, uint32_t stopEpoc
     stopRequested.store(false); pending = std::move(program); accepted = lifecycle.snapshot(); return true;
 }
 program::RunSnapshot requestProgramStop() {
+#ifdef PROGRAM_DIAGNOSTICS
+    const uint32_t enteredAt = micros();
+#endif
     Lock lock;
+#ifdef PROGRAM_DIAGNOSTICS
+    if (!stopRequested.load()) stopRequestedAt = enteredAt;
+#endif
     stopRequested.store(true); lifecycle.requestStop(); return lifecycle.snapshot();
 }
+#ifdef PROGRAM_DIAGNOSTICS
+ProgramDiagnostics programDiagnostics() { Lock lock; return diagnostics; }
+#endif
 program::RunSnapshot programSnapshot() { Lock lock; return lifecycle.snapshot(); }
 bool setManualDeviceOutput(size_t index, bool on, DeviceSnapshot &confirmed) {
     Lock lock;
@@ -66,7 +79,14 @@ void tickProgram() {
     // No I2C or JSON work under this mutex. A tick has a 1ms/64-instruction budget.
     Lock lock;
     if (stopRequested.exchange(false)) {
-        engine.stop(); pending.reset(); active.reset(); lifecycle.finish(program::EngineState::Stopped, program::Error{}); return;
+        engine.stop();
+    #ifdef PROGRAM_DIAGNOSTICS
+        // Includes mutex admission and loop/I2C scheduling, excludes HTTP transit.
+        const uint32_t elapsed = micros() - stopRequestedAt;
+        if (elapsed > diagnostics.maxStopUs) diagnostics.maxStopUs = elapsed;
+        ++diagnostics.stopSamples;
+    #endif
+        pending.reset(); active.reset(); lifecycle.finish(program::EngineState::Stopped, program::Error{}); return;
     }
     if (pending && lifecycle.markRunning()) { active = std::move(pending); engine.start(*active); }
     if (!active) return;
