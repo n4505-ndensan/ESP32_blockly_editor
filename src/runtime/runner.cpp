@@ -15,6 +15,16 @@ namespace
         Lock() { xSemaphoreTake(mutex, portMAX_DELAY); }
         ~Lock() { xSemaphoreGive(mutex); }
     };
+#ifdef SENSOR_DIAGNOSTICS
+    struct SensorReadFailure
+    {
+        bool pending = false;
+        int index = -1;
+        uint32_t at = 0;
+        SensorSample sample;
+        program::RunSnapshot run;
+    } sensorReadFailure;
+#endif
     class Hardware : public program::Devices
     {
     public:
@@ -30,7 +40,17 @@ namespace
         {
             const auto state = deviceState(index);
             value = state.sample.value;
-            return state.sample.status == SensorStatus::Ok;
+#ifdef SENSOR_DIAGNOSTICS
+            if (!sensorValueUsable(state.sample))
+            {
+                // Called under the runtime mutex: capture only, never print here.
+                sensorReadFailure.pending = true;
+                sensorReadFailure.index = index;
+                sensorReadFailure.at = millis();
+                sensorReadFailure.sample = state.sample;
+            }
+#endif
+            return sensorValueUsable(state.sample);
         }
         void set(int index, bool on) override { setDeviceOutput(index, on); }
         void allOff() override { turnDeviceOutputsOff(); }
@@ -139,6 +159,39 @@ void tickProgram()
     if (engine.state() != program::EngineState::Running)
     {
         lifecycle.finish(engine.state(), engine.error());
+#ifdef SENSOR_DIAGNOSTICS
+        if (sensorReadFailure.pending)
+            sensorReadFailure.run = lifecycle.snapshot();
+#endif
         active.reset();
     }
 }
+#ifdef SENSOR_DIAGNOSTICS
+void publishSensorReadFailure()
+{
+    SensorReadFailure failure;
+    {
+        Lock lock;
+        if (!sensorReadFailure.pending)
+            return;
+        failure = sensorReadFailure;
+        sensorReadFailure.pending = false;
+    }
+    // Run from loop immediately after tick, outside runtime/device locks.
+    JsonDocument doc;
+    doc["ts"] = failure.at;
+    doc["bootId"] = programBootId();
+    doc["sensor"] = deviceDescriptor(failure.index).id;
+    doc["runId"] = failure.run.runId;
+    doc["blockId"] = JsonString(failure.run.error.blockId, false);
+    doc["error"] = failure.run.error.code;
+    doc["status"] = sensorStatusName(failure.sample.status);
+    doc["sampleUpdatedAtMs"] = failure.sample.updatedAt;
+    doc["sampleAgeMs"] = uint32_t(failure.at - failure.sample.updatedAt);
+    // Stored value is diagnostic only, not a valid reading on this path.
+    doc["storedValue"] = failure.sample.value;
+    Serial.print("SENSOR_RUNTIME ");
+    serializeJson(doc, Serial);
+    Serial.println();
+}
+#endif

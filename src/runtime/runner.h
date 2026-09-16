@@ -13,6 +13,10 @@ program::RunSnapshot programSnapshot();
 bool setManualDeviceOutput(size_t index, bool on, DeviceSnapshot &confirmed);
 void tickProgram();
 
+#ifdef SENSOR_DIAGNOSTICS
+void publishSensorReadFailure();
+#endif
+
 #ifdef PROGRAM_DIAGNOSTICS
 struct ProgramDiagnostics
 {

@@ -29,9 +29,17 @@ AST実行を始めると部品はプログラム側から動くが、変化は�
 接続が切れたときはセンサ値を消して接続状態を表示する。ダミー値へ切り替えることはない。
 出力の状態は、再接続時にESP32が送るスナップショットで揃う。
 カタログ取得後にSSEを開始し、devices・program両方のスナップショットを待つ。
-センサ異常は`value:null`と`status:unavailable|stale`で表示する。正常値のstatusはok。
+センサ状態は`{value:number|null,status:"ok"|"held"|"unavailable"|"stale"}`。
+`ok`は正常値、`held`は利用可能な直近正常値で、どちらもAPIのvalueは数値。
+`sensorPresentation.ts`で表示を変換し、`held`は数値・単位と「直近値を使用中」を表示する。
+`unavailable`・`stale`は`value:null`で、画面は`--`と理由を表示する。
+保持・鮮度の判定はESP32で行い、ブラウザでは過去値の保持や期限延長をしない。
+距離のWrapTargetFail・SignalFailだけが保持対象で、期限は最後の正常取得から1000ms未満。
+他の異常やI2C異常による即時無効化後は、新規正常測定まで復旧しない。
 
 `dummyCatalog.ts`はPCだけでUIを触るための写しで、部品の定義そのものは
 ファームウェア（`src/devices/devices.cpp`）が持つ。
 
-通信仕様は[adr/0001](../../../adr/0001-device-state-and-control.md)を参照。
+通信仕様は[adr/0001](../../../adr/0001-device-state-and-control.md)、
+センサ有効性は[adr/0007](../../../adr/0007-sensor-validity.md)と
+[adr/0008](../../../adr/0008-held-distance-value.md)を参照。

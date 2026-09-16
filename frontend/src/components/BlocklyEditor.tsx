@@ -4,6 +4,8 @@ import { blocks } from "blockly/blocks";
 import * as ja from "blockly/msg/ja";
 import { configureDeviceBlocks } from "../blockly/deviceBlocks";
 import { createToolbox } from "../blockly/toolbox";
+import { clearWorkspaceState, hasBlocks, loadWorkspaceState, saveWorkspaceState } from "../blockly/workspaceStorage";
+import type { WorkspaceState } from "../blockly/workspaceStorage";
 import { deviceStore } from "../store/deviceStore";
 import { compileWorkspace } from "../program/compile";
 import type { Program } from "../program/types";
@@ -26,14 +28,25 @@ const theme = Blockly.Theme.defineTheme("workspace", {
   fontStyle: { family: "system-ui, sans-serif", size: 12 },
 });
 
+const SAVE_DELAY_MS = 400;
+
+// プライベートモードなどlocalStorage自体が例外を投げる環境がある。
+const browserStorage = () => { try { return window.localStorage; } catch { return null; } };
+
 export type EditorHandle = { compile: () => Program; revision: () => number; highlight: (blockId: string | null) => void };
 export default function BlocklyEditor(props: { onReady: (editor: EditorHandle) => void; onEdit: (revision: number) => void }) {
   let container!: HTMLDivElement;
   let workspace: Blockly.WorkspaceSvg | undefined;
   let resizeObserver: ResizeObserver | undefined;
   let revision = 0;
+  // 復元・初期配置で発生する変更イベントは編集とみなさない。
+  let restoring = false;
+  let saveTimer: number | undefined;
+  // 保存待ち、または保存に失敗して失われうる編集があることを示す。
+  let unsaved = false;
 
   onMount(() => {
+    const storage = browserStorage();
     configureDeviceBlocks(deviceStore.devices);
     workspace = Blockly.inject(container, {
       toolbox: createToolbox(deviceStore.devices),
@@ -45,7 +58,44 @@ export default function BlocklyEditor(props: { onReady: (editor: EditorHandle) =
       move: { scrollbars: true, drag: true, wheel: true },
       zoom: { controls: true, wheel: true, startScale: 0.9 },
     });
-    const start = workspace.newBlock("program_start"); start.initSvg(); start.render(); start.moveBy(35, 35);
+    const seed = () => {
+      const start = workspace!.newBlock("program_start"); start.initSvg(); start.render(); start.moveBy(35, 35);
+    };
+    const saved = storage ? loadWorkspaceState(storage) : null;
+    restoring = true;
+    try {
+      if (hasBlocks(saved)) Blockly.serialization.workspaces.load(saved as WorkspaceState, workspace);
+      else seed();
+    } catch {
+      // 保存データが現在のブロック定義と合わない場合は捨てて作り直す。
+      workspace.clear(); if (storage) clearWorkspaceState(storage); seed();
+    } finally { restoring = false; }
+
+    const flush = () => {
+      if (saveTimer !== undefined) { clearTimeout(saveTimer); saveTimer = undefined; }
+      if (!unsaved || !workspace) return;
+      if (!storage) return;
+      const state = Blockly.serialization.workspaces.save(workspace) as WorkspaceState;
+      unsaved = !saveWorkspaceState(storage, state);
+    };
+    const scheduleSave = () => {
+      unsaved = true;
+      if (!storage) return;
+      if (saveTimer !== undefined) clearTimeout(saveTimer);
+      saveTimer = window.setTimeout(flush, SAVE_DELAY_MS);
+    };
+    // 保存できなかった編集が残る場合だけ、離脱前に確認ダイアログを出す。
+    const onBeforeUnload = (event: BeforeUnloadEvent) => { flush(); if (unsaved) event.preventDefault(); };
+    const onHide = () => { if (document.visibilityState === "hidden") flush(); };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onHide);
+    onCleanup(() => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onHide);
+      flush();
+    });
     const warnings = () => {
       if (!workspace) return;
       const roots = workspace.getAllBlocks(false).filter((block) => block.type === "program_start" && block.isEnabled());
@@ -54,8 +104,10 @@ export default function BlocklyEditor(props: { onReady: (editor: EditorHandle) =
     };
     workspace.addChangeListener((event) => {
       if (event.isUiEvent || event.type === Blockly.Events.FINISHED_LOADING) return;
-      ++revision; workspace?.highlightBlock(null); props.onEdit(revision); warnings();
+      if (restoring) { warnings(); return; }
+      ++revision; workspace?.highlightBlock(null); props.onEdit(revision); warnings(); scheduleSave();
     });
+    warnings();
     props.onReady({ compile: () => compileWorkspace(workspace!, deviceStore.devices), revision: () => revision, highlight: (id) => workspace?.highlightBlock(id) });
 
     // Observe the allocated panel, including layout changes at breakpoints.

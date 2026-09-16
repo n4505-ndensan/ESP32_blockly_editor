@@ -8,6 +8,8 @@
 #include <runtime/json_input.h>
 #include <runtime/state_json.h>
 #include <devices/sensor_sample.h>
+#include <devices/sensor_diagnostics.h>
+#include <devices/distance_sample.h>
 #include <program_fixtures.h>
 #include <cstring>
 #include <memory>
@@ -317,6 +319,114 @@ static void test_failure_json_owns_diagnostics()
     writeFailure(doc.to<JsonVariant>(), "bad_request", "Invalid JSON");
     TEST_ASSERT_TRUE(doc["blockId"].isNull());
 }
+static void test_sensor_diagnostic_history()
+{
+    SensorDiagnosticHistory history;
+    TEST_ASSERT_FALSE(history.hasGood);
+    history.record(false, 10);
+    TEST_ASSERT_EQUAL(1, history.consecutiveFailures);
+    history.record(true, 20);
+    TEST_ASSERT_TRUE(history.hasGood);
+    TEST_ASSERT_EQUAL(20, history.lastGoodAt);
+    TEST_ASSERT_EQUAL(0, history.consecutiveFailures);
+    history.record(false, 30);
+    history.record(false, 40);
+    TEST_ASSERT_EQUAL(2, history.consecutiveFailures);
+    TEST_ASSERT_EQUAL(3, history.totalFailures);
+    TEST_ASSERT_EQUAL(20, history.lastGoodAt);
+}
+static void test_sensor_diagnostic_log_transitions()
+{
+    SensorDiagnosticHistory history;
+    TEST_ASSERT_TRUE(history.shouldLog(0, 0));
+    TEST_ASSERT_FALSE(history.shouldLog(0, 5000));
+    TEST_ASSERT_TRUE(history.shouldLog(4, 5001));
+    TEST_ASSERT_FALSE(history.shouldLog(4, 5100));
+    TEST_ASSERT_TRUE(history.shouldLog(4, 6001));
+    TEST_ASSERT_TRUE(history.shouldLog(2, 6002));
+    TEST_ASSERT_TRUE(history.shouldLog(0, 6003));
+    TEST_ASSERT_FALSE(history.shouldLog(0, 9000));
+}
+static void test_sensor_diagnostic_log_clock_wrap()
+{
+    SensorDiagnosticHistory history;
+    TEST_ASSERT_TRUE(history.shouldLog(4, 0xffffff00));
+    TEST_ASSERT_FALSE(history.shouldLog(4, uint32_t(0xffffff00 + 999u)));
+    TEST_ASSERT_TRUE(history.shouldLog(4, uint32_t(0xffffff00 + 1000u)));
+}
+static void test_distance_holds_only_previous_good_value()
+{
+    SensorSample sample{74, 100, SensorStatus::Ok};
+    sample = updateDistanceSample(sample, DistanceReadResult::TransientFailure, 1900, 200);
+    TEST_ASSERT_EQUAL((int)SensorStatus::Held, (int)sample.status);
+    TEST_ASSERT_EQUAL_FLOAT(74, sample.value);
+    TEST_ASSERT_EQUAL(100, sample.updatedAt);
+    TEST_ASSERT_TRUE(sensorValueUsable(sample));
+    sample = updateDistanceSample(sample, DistanceReadResult::TransientFailure, 222, 1099);
+    TEST_ASSERT_EQUAL((int)SensorStatus::Held, (int)sample.status);
+    TEST_ASSERT_EQUAL(100, sample.updatedAt);
+    sample = updateDistanceSample(sample, DistanceReadResult::NoData, 0, 1100);
+    TEST_ASSERT_EQUAL((int)SensorStatus::Stale, (int)sample.status);
+    TEST_ASSERT_FALSE(sensorValueUsable(sample));
+}
+static void test_distance_failure_never_invents_or_resurrects_value()
+{
+    auto empty = updateDistanceSample(SensorSample{}, DistanceReadResult::TransientFailure, 5, 100);
+    TEST_ASSERT_EQUAL((int)SensorStatus::Unavailable, (int)empty.status);
+    SensorSample sample{50, 100, SensorStatus::Ok};
+    sample = updateDistanceSample(sample, DistanceReadResult::FatalFailure, 0, 200);
+    TEST_ASSERT_EQUAL((int)SensorStatus::Unavailable, (int)sample.status);
+    sample = updateDistanceSample(sample, DistanceReadResult::TransientFailure, 300, 300);
+    TEST_ASSERT_EQUAL((int)SensorStatus::Unavailable, (int)sample.status);
+    sample = updateDistanceSample(sample, DistanceReadResult::Valid, 90, 400);
+    TEST_ASSERT_EQUAL((int)SensorStatus::Ok, (int)sample.status);
+    TEST_ASSERT_EQUAL_FLOAT(90, sample.value);
+    TEST_ASSERT_EQUAL(400, sample.updatedAt);
+}
+static void test_distance_held_clock_wrap_and_notifications()
+{
+    SensorSample good{10, 0xffffff00, SensorStatus::Ok};
+    const auto held = updateDistanceSample(good, DistanceReadResult::TransientFailure, 0, uint32_t(good.updatedAt + 999));
+    TEST_ASSERT_TRUE(sensorValueUsable(held));
+    TEST_ASSERT_TRUE(sensorChanged(good, held, 1));
+    TEST_ASSERT_TRUE(sensorChanged(held, good, 1));
+    TEST_ASSERT_EQUAL_STRING("held", sensorStatusName(held.status));
+    const auto stale = freshSample(held, uint32_t(good.updatedAt + 1000));
+    TEST_ASSERT_EQUAL((int)SensorStatus::Stale, (int)stale.status);
+    TEST_ASSERT_TRUE(sensorChanged(held, stale, 1));
+}
+static void test_engine_uses_held_value_and_stops_at_expiry()
+{
+    struct SampleDevices : FakeDevices
+    {
+        SensorSample sample{100, 0, SensorStatus::Ok};
+        uint32_t now = 0;
+        bool read(int, double &value) override
+        {
+            ++reads;
+            sample = freshSample(sample, now);
+            value = sample.value;
+            return sensorValueUsable(sample);
+        }
+    } hardware;
+    JsonDocument doc;
+    deserializeJson(doc, R"({"version":1,"body":[{"type":"forever","blockId":"loop","body":[{"type":"if","blockId":"if","condition":{"type":"compare","blockId":"c","op":"LT","left":{"type":"sensor","blockId":"distance","deviceId":"distance"},"right":{"type":"number","blockId":"n","value":200}},"then":[{"type":"set_output","blockId":"on","deviceId":"led_red","on":true}],"else":[]},{"type":"wait","blockId":"w","ms":0}]}]})");
+    Error error;
+    TEST_ASSERT_TRUE(validate(doc.as<JsonVariantConst>(), hardware, *compiled, error));
+    engine.reset(new Engine(hardware, clockSource, shouldStop, nullptr));
+    engine->start(*compiled);
+    hardware.sample = updateDistanceSample(hardware.sample, DistanceReadResult::TransientFailure, 3000, 999);
+    hardware.now = 999;
+    engine->tick();
+    TEST_ASSERT_TRUE(hardware.on);
+    TEST_ASSERT_EQUAL((int)EngineState::Running, (int)engine->state());
+    hardware.now = 1000;
+    engine->tick();
+    TEST_ASSERT_EQUAL((int)EngineState::Error, (int)engine->state());
+    TEST_ASSERT_EQUAL_STRING("distance", engine->error().blockId);
+    TEST_ASSERT_FALSE(hardware.on);
+    engine.reset(); // Hardware lifetime must exceed the engine's lifetime.
+}
 int runTests()
 {
     UNITY_BEGIN();
@@ -341,6 +451,13 @@ int runTests()
     RUN_TEST(test_state_json_owns_error_block_id);
     RUN_TEST(test_state_json_serializes_after_snapshot_destruction);
     RUN_TEST(test_failure_json_owns_diagnostics);
+    RUN_TEST(test_sensor_diagnostic_history);
+    RUN_TEST(test_sensor_diagnostic_log_transitions);
+    RUN_TEST(test_sensor_diagnostic_log_clock_wrap);
+    RUN_TEST(test_distance_holds_only_previous_good_value);
+    RUN_TEST(test_distance_failure_never_invents_or_resurrects_value);
+    RUN_TEST(test_distance_held_clock_wrap_and_notifications);
+    RUN_TEST(test_engine_uses_held_value_and_stops_at_expiry);
     return UNITY_END();
 }
 #ifdef ARDUINO

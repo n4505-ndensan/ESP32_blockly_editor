@@ -16,9 +16,12 @@ namespace
             state["on"] = value.on;
         else
         {
-            state["status"] = sensorStatusName(value.sample.status);
-            if (value.sample.status == SensorStatus::Ok) state["value"] = value.sample.value;
-            else state["value"] = nullptr;
+            const auto sample = freshSample(value.sample, millis());
+            state["status"] = sensorStatusName(sample.status);
+            if (sensorValueUsable(sample))
+                state["value"] = sample.value;
+            else
+                state["value"] = nullptr;
         }
     }
 
@@ -51,7 +54,8 @@ namespace
     {
         JsonDocument doc;
         doc["ts"] = millis();
-        doc["bootId"] = programBootId(); doc["revision"] = snapshot.revision;
+        doc["bootId"] = programBootId();
+        doc["revision"] = snapshot.revision;
         JsonArray devices = doc["devices"].to<JsonArray>();
 
         for (size_t i = 0; i < deviceCount(); i++)
@@ -89,7 +93,8 @@ namespace
         JsonVariant root = response->getRoot();
         JsonArray devices = root["devices"].to<JsonArray>();
         const auto snapshot = snapshotDevices();
-        root["bootId"] = programBootId(); root["revision"] = snapshot.revision;
+        root["bootId"] = programBootId();
+        root["revision"] = snapshot.revision;
 
         for (size_t i = 0; i < deviceCount(); i++)
             writeDeviceEntry(devices.add<JsonObject>(), i, snapshot.states[i]);
@@ -143,7 +148,8 @@ namespace
         }
 
         DeviceSnapshot snapshot;
-        if (!setManualDeviceOutput(static_cast<size_t>(index), on.as<bool>(), snapshot)) {
+        if (!setManualDeviceOutput(static_cast<size_t>(index), on.as<bool>(), snapshot))
+        {
             sendError(request, 409, "program_busy", "実行中は個別に操作できません。停止してください。");
             return;
         }
@@ -151,7 +157,8 @@ namespace
         AsyncJsonResponse *response = new AsyncJsonResponse();
         JsonVariant root = response->getRoot();
         root["id"] = deviceDescriptor(index).id;
-        root["bootId"] = programBootId(); root["revision"] = snapshot.revision;
+        root["bootId"] = programBootId();
+        root["revision"] = snapshot.revision;
         writeDeviceState(root["state"].to<JsonObject>(), static_cast<size_t>(index), snapshot.states[index]);
 
         response->setLength();

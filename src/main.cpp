@@ -87,6 +87,9 @@ void loop()
 
   const uint32_t now = millis();
   tickProgram();
+#ifdef SENSOR_DIAGNOSTICS
+  publishSensorReadFailure();
+#endif
 
   if (now - lastSample >= SENSOR_INTERVAL_MS)
   {

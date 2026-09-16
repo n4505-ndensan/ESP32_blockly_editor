@@ -1,4 +1,5 @@
 import { createMemo, For, Show } from "solid-js";
+import { sensorPresentation } from "../device/sensorPresentation";
 import { deviceSource, DeviceStatus, deviceStore } from "../store/deviceStore";
 
 export default function SensorPanel() {
@@ -17,10 +18,8 @@ export default function SensorPanel() {
       <div class="sensor-readings">
         <For each={sensors()}>
           {(device) => {
-            const value = createMemo(() =>
-              device.state.status !== "ok" ? null : device.id !== "temperature"
-                ? device.state.value
-                : device.state.value?.toFixed(2),
+            const presentation = createMemo(() =>
+              sensorPresentation(device.id, device.state),
             );
             return (
               <section
@@ -35,11 +34,11 @@ export default function SensorPanel() {
                   </Show>
                 </h3>
                 <p class="sensor-value">
-                  <span id={device.id}>{value() ?? "--"}</span>
+                  <span id={device.id}>{presentation().value}</span>
                   <span class="unit">{device.unit}</span>
                 </p>
-                <Show when={device.state.status !== "ok"}>
-                  <p class="sensor-caption">{device.state.status === "stale" ? "値が更新されていません" : "取得できません"}</p>
+                <Show when={presentation().caption}>
+                  <p class="sensor-caption">{presentation().caption}</p>
                 </Show>
                 <Show when={device.description}>
                   <p class="sensor-caption">{device.description}</p>

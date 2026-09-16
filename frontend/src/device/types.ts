@@ -1,14 +1,14 @@
 // ESP32の`GET /api/devices`・`devices`イベントとそろえた型。
-// 仕様はadr/0001-device-state-and-control.mdを参照。
+// 仕様はadr/0001-device-state-and-control.md、adr/0008-held-distance-value.mdを参照。
 
 export type DeviceKind = "output" | "sensor";
 export type DeviceControl = "none" | "switch";
 
-/** 無効なセンサ値は0ではなくnull。 */
+/** ok/heldは数値を持ち、無効なセンサ値は0ではなくnull。 */
 export type DeviceState = {
   on?: boolean;
   value?: number | null;
-  status?: "ok" | "unavailable" | "stale";
+  status?: "ok" | "held" | "unavailable" | "stale";
 };
 
 /** カタログ1件。静的な定義と、その時点の状態。 */
