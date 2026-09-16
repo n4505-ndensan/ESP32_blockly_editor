@@ -14,6 +14,9 @@ bool setManualDeviceOutput(size_t index, bool on, DeviceSnapshot &confirmed);
 void tickProgram();
 
 #ifdef PROGRAM_DIAGNOSTICS
-struct ProgramDiagnostics { uint32_t stopSamples = 0, maxStopUs = 0; };
+struct ProgramDiagnostics
+{
+    uint32_t stopSamples = 0, maxStopUs = 0;
+};
 ProgramDiagnostics programDiagnostics();
 #endif
