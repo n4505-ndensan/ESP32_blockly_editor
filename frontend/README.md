@@ -3,7 +3,7 @@
 SolidJS + TypeScript + Viteでセンサ表示・部品の操作とBlocklyを同じ画面に配置する。
 PCでは左にtoolbox付きのブロックエディタ、右に温度・距離とLED・ブザーのスイッチを表示し、
 狭い画面では縦に並べる。
-Blocklyのサイズはパネルの幅・高さに追従する。ブロックは編集のみで、実行・保存は未実装。
+Blocklyのサイズはパネルの幅・高さに追従する。ブロックをASTへ変換してESP32で実行できる。保存・復元は未実装。
 
 部品のスイッチはESP32の応答を待ってから表示を切り替える。押した瞬間には変えない。
 状態の正はESP32にあり、AST実行を始めたときも同じ経路で状態が届くようにしてある。
@@ -23,24 +23,38 @@ pnpm dev
 ESP32やそのIPアドレスの設定は不要。画面にも「ダミー値」と表示する。
 開発サーバーへLAN経由でアクセスした場合もダミー値になる。
 
+実機で実行する開発時は、`frontend/.env.local`に`VITE_ESP32_TARGET=http://<ESP32のIP>`を設定してViteを再起動する。
+`/api`と`/events`はViteからESP32へ中継される。未指定時はダミー部品で編集・検証でき、RUNは無効になる。
+実機との通信が失敗してもダミーへ切り替えない。
+
+「開始」の下に処理をつなぎ、RUNで実行する。待機は秒単位。「ずっと」で無限ループを作れる。
+正常終了では出力を保持し、STOP・エラーでは全出力をOFFにする。ブラウザを閉じても実行は継続する。
+実行中の編集内容は次回RUNから有効。ページ再読込では編集内容が失われるが、実行状態の取得とSTOPは可能。
+
 ## 確認・ビルド
 
 `frontend/`で実行する。
 
 ```sh
 pnpm check
+pnpm test
 pnpm build
 pnpm preview
 ```
 
 - `check`: TypeScriptの型検査。
+- `test`: VitestによるAST・変換・通信状態のテスト。変更時は失敗するテストを先に書き、`test:watch`で確認する。
 - `build`: 型検査とBlockly素材の準備後、`dist/`へビルドし、gzip圧縮した実機用ファイルを`../data/web/`へ出力する。
 - `preview`: ビルド成果物をPC上で確認する。localhost・127.0.0.1・[::1]で開いた場合はダミー値を表示する。
 
-データ元は、Vite開発モードかローカルのプレビューならダミー、それ以外のビルド配信ではSSEとする。
+データ元は、接続先未指定のVite開発モードかローカルのプレビューならダミー、それ以外ではSSEとする。
 ESP32を自動検出しているわけではないため、別のサーバーへビルドを配置した場合もSSE接続になる。
 実機への接続が失敗してもダミー値には切り替えず、接続状態と`--`を表示する。
 ダミーのときはスイッチも手元の状態だけが変わり、ESP32へは通信しない。
+
+`pnpm test:browser`はPlaywrightとインストール済みMicrosoft Edgeで画面を確認する。
+`VITE_ESP32_TARGET`を環境変数に指定すると、手動操作・SSE実行状態・停止の実機テストも行う。
+テストはポート3300でViteを起動するため、既存の開発サーバーは停止しておく。
 
 `dist/`はプレビュー用の未圧縮成果物、`data/web/`は実機用の成果物。どちらも自動生成専用で、
 ビルド時に内容を置き換える。手書きのファイルは置かない。
@@ -97,12 +111,15 @@ frontend/
     components/SensorPanel.tsx       # 温度・距離と接続状態の表示
     components/DeviceControlPanel.tsx # LED・ブザーのON/OFF
     components/BlocklyEditor.tsx     # パネル内のBlocklyの生成・リサイズ・破棄
-    device/createDeviceStore.ts      # 部品の一覧・状態・操作。ダミーとSSEの切り替え
+    store/deviceStore.ts             # 部品の状態と更新プリミティブ
+    store/programStore.ts            # 実行状態
+    device/connection.ts             # カタログ・SSE・ダミー接続
+    device/actions.ts                # 手動操作
     device/dummyCatalog.ts           # PCで触るための仮の部品一覧
     device/types.ts                  # ESP32とそろえた型
     blockly/toolbox.ts               # カテゴリとブロックの配置
     blockly/deviceBlocks.ts          # 部品と待機の固定ブロック定義
-    program/                         # 将来のAST変換・検証
+    program/                         # AST変換・検証・実行要求
   vite.config.ts
   scripts/pack-web.mjs               # 圧縮・実機用ファイルの配置
   dist/                             # 自動生成したプレビュー用ファイル（未圧縮）

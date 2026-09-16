@@ -5,16 +5,21 @@
 #include <string.h>
 
 #include <devices/devices.h>
+#include <runtime/runner.h>
 
 namespace
 {
     // 状態は出力部品ならon、センサならvalueだけを載せる。
-    void writeDeviceState(JsonObject state, size_t index)
+    void writeDeviceState(JsonObject state, size_t index, const DeviceState &value)
     {
         if (deviceDescriptor(index).kind == DeviceKind::Output)
-            state["on"] = deviceState(index).on;
+            state["on"] = value.on;
         else
-            state["value"] = deviceState(index).value;
+        {
+            state["status"] = sensorStatusName(value.sample.status);
+            if (value.sample.status == SensorStatus::Ok) state["value"] = value.sample.value;
+            else state["value"] = nullptr;
+        }
     }
 
     const char *kindName(DeviceKind kind)
@@ -28,7 +33,7 @@ namespace
     }
 
     // カタログ1件分。静的な定義と現在の状態をまとめて返す。
-    void writeDeviceEntry(JsonObject entry, size_t index)
+    void writeDeviceEntry(JsonObject entry, size_t index, const DeviceState &state)
     {
         const DeviceDescriptor &device = deviceDescriptor(index);
 
@@ -38,14 +43,15 @@ namespace
         entry["unit"] = device.unit;
         entry["kind"] = kindName(device.kind);
         entry["control"] = controlName(device.control);
-        writeDeviceState(entry["state"].to<JsonObject>(), index);
+        writeDeviceState(entry["state"].to<JsonObject>(), index, state);
     }
 
     // SSEで配る形。カタログの情報は載せず、IDと状態だけにする。
-    String buildStatePayload(uint32_t mask)
+    String buildStatePayload(uint32_t mask, const DeviceSnapshot &snapshot)
     {
         JsonDocument doc;
         doc["ts"] = millis();
+        doc["bootId"] = programBootId(); doc["revision"] = snapshot.revision;
         JsonArray devices = doc["devices"].to<JsonArray>();
 
         for (size_t i = 0; i < deviceCount(); i++)
@@ -55,7 +61,7 @@ namespace
 
             JsonObject entry = devices.add<JsonObject>();
             entry["id"] = deviceDescriptor(i).id;
-            writeDeviceState(entry["state"].to<JsonObject>(), i);
+            writeDeviceState(entry["state"].to<JsonObject>(), i, snapshot.states[i]);
         }
 
         String payload;
@@ -82,9 +88,11 @@ namespace
 
         JsonVariant root = response->getRoot();
         JsonArray devices = root["devices"].to<JsonArray>();
+        const auto snapshot = snapshotDevices();
+        root["bootId"] = programBootId(); root["revision"] = snapshot.revision;
 
         for (size_t i = 0; i < deviceCount(); i++)
-            writeDeviceEntry(devices.add<JsonObject>(), i);
+            writeDeviceEntry(devices.add<JsonObject>(), i, snapshot.states[i]);
 
         response->setLength();
         request->send(response);
@@ -134,12 +142,17 @@ namespace
             return;
         }
 
-        setDeviceOutput(static_cast<size_t>(index), on.as<bool>());
+        DeviceSnapshot snapshot;
+        if (!setManualDeviceOutput(static_cast<size_t>(index), on.as<bool>(), snapshot)) {
+            sendError(request, 409, "program_busy", "実行中は個別に操作できません。停止してください。");
+            return;
+        }
 
         AsyncJsonResponse *response = new AsyncJsonResponse();
         JsonVariant root = response->getRoot();
         root["id"] = deviceDescriptor(index).id;
-        writeDeviceState(root["state"].to<JsonObject>(), static_cast<size_t>(index));
+        root["bootId"] = programBootId(); root["revision"] = snapshot.revision;
+        writeDeviceState(root["state"].to<JsonObject>(), static_cast<size_t>(index), snapshot.states[index]);
 
         response->setLength();
         request->send(response);
@@ -154,14 +167,15 @@ void registerDeviceApi(AsyncWebServer &server)
 
 void sendDeviceSnapshot(AsyncEventSourceClient *client)
 {
-    client->send(buildStatePayload(allDevicesMask()).c_str(), "devices", millis());
+    client->send(buildStatePayload(allDevicesMask(), snapshotDevices()).c_str(), "devices", millis());
 }
 
 void publishDeviceChanges(AsyncEventSource &events)
 {
-    const uint32_t changed = takeChangedDevices();
+    DeviceSnapshot snapshot;
+    const uint32_t changed = takeDeviceChanges(snapshot);
     if (changed == 0)
         return;
 
-    events.send(buildStatePayload(changed).c_str(), "devices", millis());
+    events.send(buildStatePayload(changed, snapshot).c_str(), "devices", millis());
 }

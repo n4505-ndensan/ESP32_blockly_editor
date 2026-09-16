@@ -7,6 +7,8 @@
 
 #include <api/device_api.h>
 #include <devices/devices.h>
+#include <api/program_api.h>
+#include <runtime/runner.h>
 
 #define HTTP_PORT 80
 
@@ -41,6 +43,7 @@ void setup()
   Serial.println("SETUP");
 
   initDevices();
+  initProgramRuntime();
 
   // uploadfsで書き込んだLittleFSを使う。失敗しても自動フォーマットしない。
   if (!LittleFS.begin(false))
@@ -64,10 +67,12 @@ void setup()
     }
 
     // 途中から参加しても状態がそろうよう、接続直後に全部品を1回送る。
-    sendDeviceSnapshot(client); });
+    sendDeviceSnapshot(client);
+    sendProgramSnapshot(client); });
   server.addHandler(&events);
 
   registerDeviceApi(server);
+  registerProgramApi(server);
 
   // Serve the SolidJS build and its assets; keep /events on the SSE handler.
   server.serveStatic("/", LittleFS, "/web/").setDefaultFile("index.html");
@@ -81,6 +86,7 @@ void loop()
   static uint32_t lastPublish = 0;
 
   const uint32_t now = millis();
+  tickProgram();
 
   if (now - lastSample >= SENSOR_INTERVAL_MS)
   {
@@ -92,6 +98,7 @@ void loop()
   {
     lastPublish = now;
     publishDeviceChanges(events);
+    publishProgramChanges(events);
   }
 
   delay(5);

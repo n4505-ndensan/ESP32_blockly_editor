@@ -4,10 +4,11 @@
 export type DeviceKind = "output" | "sensor";
 export type DeviceControl = "none" | "switch";
 
-/** 出力部品は`on`、センサは`value`だけを持つ。 */
+/** 無効なセンサ値は0ではなくnull。 */
 export type DeviceState = {
   on?: boolean;
-  value?: number;
+  value?: number | null;
+  status?: "ok" | "unavailable" | "stale";
 };
 
 /** カタログ1件。静的な定義と、その時点の状態。 */
@@ -24,6 +25,8 @@ export type Device = {
 /** SSEの`devices`イベント、および接続直後のスナップショット。 */
 export type DeviceStateEvent = {
   ts: number;
+  bootId: string;
+  revision: number;
   devices: { id: string; state: DeviceState }[];
 };
 

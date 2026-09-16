@@ -1,0 +1,22 @@
+[
+  {"name":"sequence","valid":true,"program":{"version":1,"body":[{"type":"set_output","blockId":"on","deviceId":"led_red","on":true},{"type":"wait","blockId":"wait","ms":1000},{"type":"set_output","blockId":"off","deviceId":"led_red","on":false}]}},
+  {"name":"if_else","valid":true,"program":{"version":1,"body":[{"type":"if","blockId":"if","condition":{"type":"compare","blockId":"compare","op":"LT","left":{"type":"sensor","blockId":"distance","deviceId":"distance"},"right":{"type":"number","blockId":"threshold","value":200}},"then":[{"type":"set_output","blockId":"on","deviceId":"led_red","on":true}],"else":[{"type":"set_output","blockId":"off","deviceId":"led_red","on":false}]}]}},
+  {"name":"repeat","valid":true,"program":{"version":1,"body":[{"type":"repeat","blockId":"repeat","count":{"type":"number","blockId":"count","value":2},"body":[{"type":"set_output","blockId":"on","deviceId":"led_red","on":true},{"type":"wait","blockId":"wait","ms":1},{"type":"set_output","blockId":"off","deviceId":"led_red","on":false}]}]}},
+  {"name":"short_circuit","valid":true,"program":{"version":1,"body":[{"type":"while","blockId":"while","condition":{"type":"logic","blockId":"and","op":"AND","left":{"type":"boolean","blockId":"false","value":false},"right":{"type":"compare","blockId":"compare","op":"GT","left":{"type":"sensor","blockId":"sensor","deviceId":"distance"},"right":{"type":"number","blockId":"zero","value":0}}},"body":[]}]}},
+  {"name":"empty_forever","valid":true,"program":{"version":1,"body":[{"type":"forever","blockId":"forever","body":[]}]}},
+  {"name":"until","valid":true,"program":{"version":1,"body":[{"type":"while","blockId":"until","condition":{"type":"not","blockId":"not","operand":{"type":"boolean","blockId":"true","value":true}},"body":[]}]}},
+  {"name":"division_by_zero_runtime","valid":true,"program":{"version":1,"body":[{"type":"repeat","blockId":"repeat","count":{"type":"arithmetic","blockId":"divide","op":"DIVIDE","left":{"type":"number","blockId":"one","value":1},"right":{"type":"number","blockId":"zero","value":0}},"body":[]}]}},
+  {"name":"bad_version","valid":false,"program":{"version":2,"body":[{"type":"wait","blockId":"w","ms":0}]}},
+  {"name":"empty","valid":false,"program":{"version":1,"body":[]}},
+  {"name":"unknown_device","valid":false,"program":{"version":1,"body":[{"type":"set_output","blockId":"on","deviceId":"missing","on":true}]}},
+  {"name":"sensor_is_readonly","valid":false,"program":{"version":1,"body":[{"type":"set_output","blockId":"on","deviceId":"distance","on":true}]}},
+  {"name":"missing_input","valid":false,"program":{"version":1,"body":[{"type":"repeat","blockId":"r","body":[]}]}},
+  {"name":"no_boolean_coercion","valid":false,"program":{"version":1,"body":[{"type":"while","blockId":"w","condition":{"type":"number","blockId":"n","value":1},"body":[]}]}},
+  {"name":"fractional_repeat","valid":false,"program":{"version":1,"body":[{"type":"repeat","blockId":"r","count":{"type":"number","blockId":"n","value":1.5},"body":[]}]}},
+  {"name":"negative_wait","valid":false,"program":{"version":1,"body":[{"type":"wait","blockId":"w","ms":-1}]}},
+  {"name":"wrong_on_type","valid":false,"program":{"version":1,"body":[{"type":"set_output","blockId":"on","deviceId":"led_red","on":1}]}},
+  {"name":"unknown_statement","valid":false,"program":{"version":1,"body":[{"type":"eval","blockId":"evil","source":"anything"}]}},
+  {"name":"boolean_ordering","valid":false,"program":{"version":1,"body":[{"type":"while","blockId":"w","condition":{"type":"compare","blockId":"c","op":"LT","left":{"type":"boolean","blockId":"a","value":false},"right":{"type":"boolean","blockId":"b","value":true}},"body":[]}]}},
+  {"name":"missing_block_id","valid":false,"program":{"version":1,"body":[{"type":"wait","ms":1}]}},
+  {"name":"invalid_operator","valid":false,"program":{"version":1,"body":[{"type":"repeat","blockId":"r","count":{"type":"arithmetic","blockId":"a","op":"EVIL","left":{"type":"number","blockId":"n1","value":1},"right":{"type":"number","blockId":"n2","value":2}},"body":[]}]}}
+]

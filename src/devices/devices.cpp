@@ -1,7 +1,6 @@
 #include "devices.h"
 #include "sensors.h"
 
-#include <atomic>
 #include <math.h>
 #include <string.h>
 
@@ -26,9 +25,9 @@ namespace
 
     DeviceState sStates[kDeviceCount];
 
-    // 出力の変更はHTTPハンドラ(AsyncTCPタスク)から、センサの更新とSSE送信はloop()から入る。
-    // 印の読み書きが競合するのでアトミックに扱う。状態の値自体は1語なので取り違えは起きない。
-    std::atomic<uint32_t> sChanged{0};
+    SensorSample sPublished[kDeviceCount];
+    portMUX_TYPE sMutex = portMUX_INITIALIZER_UNLOCKED;
+    uint32_t sChanged = 0, sRevision = 0;
 
     void writePin(const DeviceDescriptor &device, bool on)
     {
@@ -40,24 +39,20 @@ void initDevices()
 {
     for (size_t i = 0; i < kDeviceCount; i++)
     {
-        sStates[i] = DeviceState{false, 0.0f};
+        sStates[i] = DeviceState{};
 
         if (kDevices[i].kind != DeviceKind::Output)
             continue;
 
         pinMode(kDevices[i].pin, OUTPUT);
-        writePin(kDevices[i], true);
+        setDeviceOutput(i, true);
     }
 
     // 起動の合図として一度すべて動かし、必ずOFFにそろえてから先へ進む。
     // 状態の正をESP32に置くので、起点の状態が決まっていないと最初の配信が実機とずれる。
     delay(400);
 
-    for (size_t i = 0; i < kDeviceCount; i++)
-    {
-        if (kDevices[i].kind == DeviceKind::Output)
-            writePin(kDevices[i], false);
-    }
+    turnDeviceOutputsOff();
 
     initSensors();
     delay(400);
@@ -73,9 +68,25 @@ const DeviceDescriptor &deviceDescriptor(size_t index)
     return kDevices[index];
 }
 
-const DeviceState &deviceState(size_t index)
+DeviceState deviceState(size_t index)
 {
-    return sStates[index];
+    portENTER_CRITICAL(&sMutex);
+    DeviceState state = sStates[index];
+    portEXIT_CRITICAL(&sMutex);
+    state.sample = freshSample(state.sample, millis());
+    return state;
+}
+
+DeviceSnapshot snapshotDevices() {
+    DeviceSnapshot snapshot{};
+    portENTER_CRITICAL(&sMutex);
+    memcpy(snapshot.states, sStates, sizeof(sStates)); snapshot.revision = sRevision;
+    portEXIT_CRITICAL(&sMutex);
+    return snapshot;
+}
+
+void turnDeviceOutputsOff() {
+    for (size_t i = 0; i < kDeviceCount; ++i) if (kDevices[i].kind == DeviceKind::Output) setDeviceOutput(i, false);
 }
 
 int deviceIndexOf(const char *id)
@@ -97,14 +108,13 @@ bool setDeviceOutput(size_t index, bool on)
     if (index >= kDeviceCount || kDevices[index].kind != DeviceKind::Output)
         return false;
 
+    portENTER_CRITICAL(&sMutex);
     writePin(kDevices[index], on);
-
-    if (sStates[index].on == on)
-        return false;
-
+    const bool changed = sStates[index].on != on;
     sStates[index].on = on;
-    sChanged.fetch_or(1u << index);
-    return true;
+    if (changed) { sChanged |= 1u << index; ++sRevision; }
+    portEXIT_CRITICAL(&sMutex);
+    return changed;
 }
 
 void pollDeviceSensors()
@@ -114,20 +124,23 @@ void pollDeviceSensors()
         if (kDevices[i].kind != DeviceKind::Sensor || kDevices[i].read == nullptr)
             continue;
 
-        const float value = kDevices[i].read();
-
-        // ノイズだけで配信が発生しないよう、部品ごとの幅を超えたときだけ変化とみなす。
-        if (fabsf(value - sStates[i].value) < kDevices[i].epsilon)
-            continue;
-
-        sStates[i].value = value;
-        sChanged.fetch_or(1u << i);
+        const SensorSample sample = freshSample(kDevices[i].read(), millis());
+        portENTER_CRITICAL(&sMutex);
+        if (sensorChanged(sPublished[i], sample, kDevices[i].epsilon)) sChanged |= 1u << i;
+        // The runtime always sees the latest sample, even below the SSE epsilon.
+        sStates[i].sample = sample; ++sRevision;
+        portEXIT_CRITICAL(&sMutex);
     }
 }
 
-uint32_t takeChangedDevices()
+uint32_t takeDeviceChanges(DeviceSnapshot &snapshot)
 {
-    return sChanged.exchange(0);
+    portENTER_CRITICAL(&sMutex);
+    const uint32_t changed = sChanged; sChanged = 0;
+    memcpy(snapshot.states, sStates, sizeof(sStates)); snapshot.revision = sRevision;
+    for (size_t i = 0; i < kDeviceCount; ++i) if (changed & (1u << i)) sPublished[i] = sStates[i].sample;
+    portEXIT_CRITICAL(&sMutex);
+    return changed;
 }
 
 uint32_t allDevicesMask()

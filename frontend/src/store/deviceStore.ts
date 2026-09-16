@@ -1,16 +1,15 @@
 import { createStore, produce, reconcile } from "solid-js/store";
 import type { Device, DeviceState } from "../device/types";
+import { DeviceRevisions, deviceSource as selectDeviceSource } from "../device/session";
 
 export type DeviceSource = "dummy" | "sse";
 
 // Vite dev (including LAN access) and local build previews use dummy devices.
-const localPreview = ["localhost", "127.0.0.1", "[::1]"].includes(
-  location.hostname,
-);
-
 /** 起動後に変わらないので、ストアではなく定数として持つ。 */
 export const deviceSource: DeviceSource =
-  import.meta.env.DEV || localPreview ? "dummy" : "sse";
+  selectDeviceSource(import.meta.env.DEV, location.hostname, import.meta.env.VITE_ESP32_TARGET ?? "");
+const revisions = new DeviceRevisions();
+export const catalogBootId = () => revisions.bootId;
 
 export enum DeviceStatus {
   CONNECTING = "接続中…",
@@ -18,6 +17,7 @@ export enum DeviceStatus {
   LOCAL_DEV_DUMMY = "ダミー値を表示中",
   CONNECTION_ERROR = "接続エラー",
   RECONNECTING = "再接続中…",
+  SYNCING = "同期中…",
 }
 
 export type DeviceStore = {
@@ -55,8 +55,13 @@ export const applyStates = (entries: readonly StateEntry[]) => {
 };
 
 /** 部品が入れ替わっても取りこぼさないよう、IDを見て入れ替える。 */
-export const replaceCatalog = (devices: readonly Device[]) => {
+export const replaceCatalog = (devices: readonly Device[], bootId = "dummy", revision = 0) => {
+  revisions.reset(bootId, revision, devices.map((d) => d.id));
   setDeviceStore("devices", reconcile([...devices], { key: "id" }));
+};
+
+export const applyConfirmedStates = (entries: readonly StateEntry[], bootId: string, revision: number) => {
+  applyStates(entries.filter((entry) => revisions.accept(bootId, revision, entry.id)));
 };
 
 export const clearSensorValues = () => {
@@ -64,7 +69,7 @@ export const clearSensorValues = () => {
     "devices",
     produce((list) => {
       for (const device of list) {
-        if (device.kind === "sensor") device.state.value = undefined;
+        if (device.kind === "sensor") device.state = { value: null, status: "unavailable" };
       }
     }),
   );

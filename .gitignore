@@ -16,3 +16,5 @@ frontend/node_modules/
 frontend/dist/
 frontend/static/media/
 data/web/
+frontend/test-results/
+frontend/playwright-report/

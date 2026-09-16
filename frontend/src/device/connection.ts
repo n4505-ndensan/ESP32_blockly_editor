@@ -1,100 +1,141 @@
 import { onCleanup, onMount } from "solid-js";
 import {
   applyStates,
+  applyConfirmedStates,
+  catalogBootId,
   clearSensorValues,
   deviceSource,
-  DeviceStatus,
-  deviceStore,
   replaceCatalog,
   setError,
   setStatus,
+  DeviceStatus,
 } from "../store/deviceStore";
+import { observeProgram, disconnectProgram } from "../program/actions";
+import { isProgramState } from "../program/client";
 import { dummyCatalog, dummySensorValues } from "./dummyCatalog";
 import type { Device, DeviceStateEvent } from "./types";
 
-const CATALOG_URL = "/api/devices";
-
-// ストアはモジュール単位で1つなので、接続も1つに限る。
-let connected = false;
-
-const loadCatalog = async () => {
-  try {
-    const response = await fetch(CATALOG_URL);
-    if (!response.ok) throw new Error(String(response.status));
-    const payload = (await response.json()) as { devices?: Device[] };
-    replaceCatalog(payload.devices ?? []);
-    setError(null);
-  } catch {
-    setError("部品の一覧を取得できませんでした。");
-  }
-};
-
-const startDummy = (cleanups: (() => void)[]) => {
-  replaceCatalog(dummyCatalog());
-  setStatus(DeviceStatus.LOCAL_DEV_DUMMY);
-
-  let tick = 0;
-  const update = () => {
-    applyStates(dummySensorValues(tick));
-    tick += 1;
-  };
-
-  update();
-  const timer = window.setInterval(update, 1000);
-  cleanups.push(() => window.clearInterval(timer));
-};
-
-const connect = (cleanups: (() => void)[]) => {
-  const events = new EventSource("/events");
-  cleanups.push(() => events.close());
-
-  events.addEventListener("open", () => {
-    setStatus(DeviceStatus.CONNECTED);
-    // 起動直後にカタログの取得が失敗していた場合に備え、空のままなら取り直す。
-    if (deviceStore.devices.length === 0) void loadCatalog();
-  });
-
-  events.addEventListener("error", () => {
-    setStatus(
-      events.readyState === EventSource.CLOSED
-        ? DeviceStatus.CONNECTION_ERROR
-        : DeviceStatus.RECONNECTING,
-    );
-    // 古い測定値は残さない。出力の状態はESP32が再接続時に送り直す。
-    clearSensorValues();
-  });
-
-  // 接続直後のスナップショットと、その後の差分の両方がこのイベントで届く。
-  events.addEventListener("devices", (event: MessageEvent<string>) => {
-    try {
-      const payload = JSON.parse(event.data) as DeviceStateEvent;
-      if (Array.isArray(payload.devices)) applyStates(payload.devices);
-    } catch {
-      // 壊れたイベントは捨てる。次の配信で状態が追いつく。
-    }
-  });
-};
-
-/** ストアへの配信を始める。呼び出したコンポーネントの寿命で止まる。 */
+let initialized = false;
+/** One connection per module store; ownership follows the root component. */
 export function initDeviceStore() {
-  if (connected) return;
-  connected = true;
-
-  const cleanups: (() => void)[] = [];
-
+  if (initialized) return;
+  initialized = true;
+  let disposed = false,
+    bootstrapping = false;
+  let events: EventSource | undefined;
+  let retry: ReturnType<typeof setTimeout> | undefined;
+  let dummyTimer: ReturnType<typeof setInterval> | undefined;
+  const connect = () => {
+    const stream = new EventSource("/events");
+    events = stream;
+    let receivedDevices = false,
+      receivedProgram = false;
+    const ready = () => {
+      if (receivedDevices && receivedProgram) setStatus(DeviceStatus.CONNECTED);
+    };
+    stream.addEventListener("open", () => {
+      if (stream !== events || disposed) return;
+      receivedDevices = receivedProgram = false;
+      setStatus(DeviceStatus.SYNCING);
+    });
+    stream.addEventListener("error", () => {
+      if (stream !== events || disposed) return;
+      setStatus(DeviceStatus.RECONNECTING);
+      disconnectProgram();
+      clearSensorValues();
+    });
+    stream.addEventListener("devices", (event: MessageEvent<string>) => {
+      if (stream !== events || disposed) return;
+      try {
+        const payload = JSON.parse(event.data) as DeviceStateEvent;
+        if (
+          !Array.isArray(payload.devices) ||
+          typeof payload.bootId !== "string"
+        )
+          return;
+        if (payload.bootId !== catalogBootId()) {
+          void bootstrap();
+          return;
+        }
+        applyConfirmedStates(payload.devices, payload.bootId, payload.revision);
+        receivedDevices = true;
+        ready();
+      } catch {
+        /* Ignore malformed events. */
+      }
+    });
+    stream.addEventListener("program", (event: MessageEvent<string>) => {
+      if (stream !== events || disposed) return;
+      try {
+        const payload: unknown = JSON.parse(event.data);
+        if (!isProgramState(payload)) return;
+        if (payload.bootId !== catalogBootId()) {
+          void bootstrap();
+          return;
+        }
+        observeProgram(payload);
+        receivedProgram = true;
+        ready();
+      } catch {
+        /* Ignore malformed events. */
+      }
+    });
+  };
+  const bootstrap = async () => {
+    if (disposed || bootstrapping) return;
+    bootstrapping = true;
+    events?.close();
+    events = undefined;
+    disconnectProgram();
+    setStatus(DeviceStatus.CONNECTING);
+    try {
+      const response = await fetch("/api/devices", {
+        cache: "no-store",
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) throw new Error("catalog");
+      const payload = (await response.json()) as {
+        devices: Device[];
+        bootId: string;
+        revision: number;
+      };
+      if (
+        !Array.isArray(payload.devices) ||
+        typeof payload.bootId !== "string" ||
+        !Number.isInteger(payload.revision)
+      )
+        throw new Error("catalog");
+      if (disposed) return;
+      replaceCatalog(payload.devices, payload.bootId, payload.revision);
+      setError(null);
+      connect();
+    } catch {
+      if (!disposed) {
+        setError("部品の一覧を取得できませんでした。");
+        retry = setTimeout(() => void bootstrap(), 2000);
+      }
+    } finally {
+      bootstrapping = false;
+    }
+  };
   onMount(() => {
-    if (deviceSource === "dummy") {
-      startDummy(cleanups);
+    if (deviceSource === "sse") {
+      void bootstrap();
       return;
     }
-
-    void loadCatalog();
-    connect(cleanups);
+    replaceCatalog(dummyCatalog());
+    setStatus(DeviceStatus.LOCAL_DEV_DUMMY);
+    let tick = 0;
+    const update = () => applyStates(dummySensorValues(tick++));
+    update();
+    dummyTimer = setInterval(update, 1000);
   });
-
   onCleanup(() => {
-    for (const dispose of cleanups) dispose();
-    cleanups.length = 0;
-    connected = false;
+    disposed = true;
+    initialized = false;
+    events?.close();
+    clearTimeout(retry);
+    clearInterval(dummyTimer);
+    disconnectProgram();
   });
 }

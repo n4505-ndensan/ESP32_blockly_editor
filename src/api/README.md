@@ -1,18 +1,27 @@
 # HTTP API
 
-`device_api.cpp`が部品のカタログ配信・操作・状態通知を扱う。
-ASTの登録、プログラムの実行・停止のハンドラもここに置く（未実装）。
-
-| | |
+| 経路 | 内容 |
 | --- | --- |
-| `GET /api/devices` | カタログと現在の状態 |
-| `POST /api/devices/command` | `{"id":..., "action":"set", "on":true}`。成功時は確定した状態を返す |
-| SSE `/events`の`devices`イベント | 変化した部品のIDと状態。接続直後は全部品を1回送る |
+| GET /api/devices | 部品カタログと全状態、bootId、revision |
+| POST /api/devices/command | `{id,action:"set",on}`。200で確定した状態、bootId、revision |
+| POST /api/program/run | `{version:1,body:[...]}`を検証し、202で開始受付時の実行状態 |
+| POST /api/program/stop | 停止と全出力OFF。202で受付時の実行状態 |
+| GET /api/program/state | 現在の実行状態 |
+| SSE /events | devicesとprogram。接続直後は両方のスナップショット |
 
-操作は冪等な`set`だけを受け、`toggle`は持たない。
-現在の状態に依存する操作は、AST実行中に画面が古い状態を持っていると意図と逆の結果になる。
+実行状態は`{bootId,revision,runId,state,error}`。
+stateはidle/starting/running/stopping/completed/stopped/error。
+errorはnull、または`{code,message,blockId}`。202は受付であり、完了はSSEまたはGETで確認する。
+開始要求は自動再送しない。停止は冪等。
 
-エラーは`error`コードとHTTPステータスで返す。
-`bad_request`(400) / `unknown_device`(404) / `unsupported_action`(422)。
+プログラムのエラー応答は`{error,message,blockId?}`。
+400: JSON不正、409: 実行中または送信中に停止、413: サイズ・深度超過、422: AST不正、503: メモリ不足。
+実行中の個別手動操作も409で拒否する。プログラムの検証失敗では出力を変更しない。
 
-仕様とその理由は[adr/0001](../../adr/0001-device-state-and-control.md)にまとめてある。
+devicesイベントは`{ts,bootId,revision,devices:[{id,state}]}`。
+出力のstateは`{on}`、センサは`{value:number|null,status:"ok"|"unavailable"|"stale"}`。
+実行器の操作も既存のdevices配信に反映する。
+
+プログラム受信はContent-Length付きのapplication/jsonを使う。TCPの分割受信に対応し、
+中断時に受信バッファを解放する。長さ不明のchunkedリクエストは受け付けない。
+上限と排他はADR 0005・0006・0007を参照。

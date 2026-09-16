@@ -7,13 +7,15 @@
   `setDeviceStore`は外に出さないので、更新経路はここに列挙されたものだけになる。
   ダミーか実機かを表す`deviceSource`は起動後に変わらないため、ストアに入れず定数で持つ。
 - `connection.ts`：ESP32からストアへ流し込む側。カタログの取得・SSE・ダミー値の生成。
-- `actions.ts`：画面からの操作。`setOutput`と`turnAllOff`だけ。
+- `actions.ts`：画面からの操作。実行中の個別操作を禁止し、`turnAllOff`は実行停止を要求する。
+- `session.ts`：接続先の選択と、部品ごとの状態更新番号の管理。
 
-どれも`store/deviceStore.ts`へ一方向に依存する。
+状態更新は`store/deviceStore.ts`のプリミティブを通す。実行状態は`store/programStore.ts`で管理する。
+接続は共通のSSEからdevicesとprogramを受ける。
 
 - Vite開発時、またはlocalhost・127.0.0.1・[::1]のプレビュー時：
   `dummyCatalog.ts`の仮の一覧を使い、センサ値を1秒ごとに更新する。ESP32へ通信しない。
-  スイッチは手元の状態だけが変わる。
+  スイッチは手元の状態だけが変わる。Viteで`VITE_ESP32_TARGET`を指定した場合は実機へ接続する。
 - ESP32から配信したビルド：`GET /api/devices`で一覧を取り、`/events`の`devices`イベントで状態を受ける。
 
 状態の正はESP32にあり、画面は楽観更新をしない。
@@ -26,6 +28,8 @@ AST実行を始めると部品はプログラム側から動くが、変化は�
 
 接続が切れたときはセンサ値を消して接続状態を表示する。ダミー値へ切り替えることはない。
 出力の状態は、再接続時にESP32が送るスナップショットで揃う。
+カタログ取得後にSSEを開始し、devices・program両方のスナップショットを待つ。
+センサ異常は`value:null`と`status:unavailable|stale`で表示する。正常値のstatusはok。
 
 `dummyCatalog.ts`はPCだけでUIを触るための写しで、部品の定義そのものは
 ファームウェア（`src/devices/devices.cpp`）が持つ。

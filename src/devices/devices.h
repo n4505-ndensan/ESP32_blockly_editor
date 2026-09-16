@@ -2,6 +2,7 @@
 #define DEVICES_H
 
 #include <Arduino.h>
+#include "sensor_sample.h"
 
 // 部品の種別。操作できるかどうかの大分類。
 enum class DeviceKind : uint8_t
@@ -30,13 +31,17 @@ struct DeviceDescriptor
     uint8_t pin;      // 出力部品のみ
     bool activeLow;   // LOWでONになる配線ならtrue
     float epsilon;    // センサのみ。この幅を超えて動いたら変化とみなす
-    float (*read)();  // センサのみ。値の読み取り
+    SensorSample (*read)();
 };
 
 struct DeviceState
 {
-    bool on;
-    float value;
+    bool on = false;
+    SensorSample sample;
+};
+struct DeviceSnapshot {
+    DeviceState states[32];
+    uint32_t revision;
 };
 
 // 全部品のピン設定と初期化を行い、状態をOFFにそろえる。
@@ -44,7 +49,10 @@ void initDevices();
 
 size_t deviceCount();
 const DeviceDescriptor &deviceDescriptor(size_t index);
-const DeviceState &deviceState(size_t index);
+DeviceState deviceState(size_t index);
+DeviceSnapshot snapshotDevices();
+uint32_t takeDeviceChanges(DeviceSnapshot &snapshot);
+void turnDeviceOutputsOff();
 
 // 見つからなければ-1を返す。
 int deviceIndexOf(const char *id);
@@ -57,7 +65,6 @@ bool setDeviceOutput(size_t index, bool on);
 void pollDeviceSensors();
 
 // 前回の取得以降に変化した部品のビット列を返し、内部の印を落とす。
-uint32_t takeChangedDevices();
 
 // 全部品を指すビット列。スナップショットの送信に使う。
 uint32_t allDevicesMask();

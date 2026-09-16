@@ -1,96 +1,59 @@
 #include "sensors.h"
-
 #include <Adafruit_AMG88xx.h>
 #include <VL53L1X.h>
 #include <Wire.h>
+#include <limits>
 
-namespace
-{
-    constexpr uint32_t DISTANCE_INTERVAL_MS = 100;
-    constexpr uint32_t DISTANCE_TIMEOUT_MS = 1000;
-
-    VL53L1X sVl53l1x;
-    Adafruit_AMG88xx sAmg;
-    float sThermoPixels[AMG88xx_PIXEL_ARRAY_SIZE];
-
-    bool sDistanceInitialized = false;
-    int sLastDistance = 0;
-    uint32_t sLastDistanceAt = 0;
-
-    // 赤外線センサーの初期化
-    void initThermo()
-    {
-        // AMG8833（温度センサー）
-        sAmg.begin(0x68); // 成功・失敗にかかわらずTrueを返すライブラリの仕様
-        Serial.println("AMG8833初期化");
-        delay(1000); // 8833待機
-    }
-
-    // 距離センサーの初期化
-    void initDistance()
-    {
-        sDistanceInitialized = false;
-        sLastDistance = 0;
-        sVl53l1x.setTimeout(DISTANCE_TIMEOUT_MS);
-        // LV53L1X（距離センサー）
-        if (!sVl53l1x.init())
-        {
-            Serial.println("VL53L1 初期化失敗");
-            return;
-        }
-
-        Serial.println("VL53L1 初期化成功");
-        sVl53l1x.startContinuous(DISTANCE_INTERVAL_MS);
-        sDistanceInitialized = true;
-        sLastDistanceAt = millis();
-    }
+namespace {
+VL53L1X distanceSensor;
+Adafruit_AMG88xx thermalSensor;
+bool distanceInitialized = false, thermalInitialized = false;
+SensorSample distanceSample, thermalSample;
 }
-
-void initSensors()
-{
-    Wire.begin();
-    Wire.setClock(400000);
-    initDistance();
-    initThermo();
+void initSensors() {
+    Wire.begin(); Wire.setClock(400000); Wire.setTimeOut(10);
+    distanceSensor.setTimeout(1000);
+    distanceInitialized = distanceSensor.init();
+    if (distanceInitialized) distanceSensor.startContinuous(100);
+    Serial.println(distanceInitialized ? "VL53L1X initialized" : "VL53L1X unavailable");
+    thermalInitialized = thermalSensor.begin(0x68);
+    Serial.println(thermalInitialized ? "AMG8833 initialized" : "AMG8833 unavailable");
+    delay(1000);
 }
-
-// 赤外線センサーから検査エリアの最高温度を取得
-float readTemperature()
-{
-    float temp = 0.0f;
-    sAmg.readPixels(sThermoPixels);
-    for (int i = 0; i < AMG88xx_PIXEL_ARRAY_SIZE; i++)
-    {
-        if (sThermoPixels[i] > temp)
-        {
-            temp = sThermoPixels[i];
+SensorSample readTemperature() {
+    if (!thermalInitialized) return thermalSample;
+    // Adafruit's readPixels discards transfer errors. Check every transfer here.
+    uint8_t pixels[128];
+    for (uint8_t offset = 0; offset < sizeof(pixels); offset += 32) {
+        Wire.beginTransmission(0x68); Wire.write(static_cast<uint8_t>(0x80 + offset));
+        if (Wire.endTransmission(false) != 0 || Wire.requestFrom(uint8_t(0x68), uint8_t(32)) != 32) {
+            while (Wire.available()) Wire.read();
+            thermalSample.status = SensorStatus::Unavailable; return thermalSample;
         }
+        for (uint8_t i = 0; i < 32; ++i) pixels[offset + i] = Wire.read();
     }
-
-    return temp;
+    float highest = -std::numeric_limits<float>::infinity();
+    for (uint8_t i = 0; i < 128; i += 2) {
+        int16_t raw = (pixels[i] | (pixels[i + 1] << 8)) & 0xfff;
+        if (raw & 0x800) raw -= 4096;
+        highest = std::max(highest, raw * 0.25f);
+    }
+    thermalSample = {highest, millis(), SensorStatus::Ok};
+    return thermalSample;
 }
-
-// ToFセンサーから対象物までの距離取得
-float readDistance()
-{
-    if (!sDistanceInitialized)
-        return 0.0f;
-
-    // 測定完了を待たず、準備できた値だけを取得する。
-    if (sVl53l1x.dataReady() && sVl53l1x.last_status == 0)
-    {
-        const int distance = sVl53l1x.read(false);
-        if (sVl53l1x.last_status == 0)
-        {
-            sLastDistance = distance;
-            sLastDistanceAt = millis();
-        }
+SensorSample readDistance() {
+    if (!distanceInitialized) return distanceSample;
+    const bool ready = distanceSensor.dataReady();
+    if (distanceSensor.last_status != 0) {
+        distanceSample.status = SensorStatus::Unavailable; return distanceSample;
     }
-
-    // 測定の合間は前回値を維持。1秒更新がなければ従来と同じ0を返す。
-    // read(false)はライブラリのタイムアウトを使わないため、経過時間で判定する。
-    if (static_cast<uint32_t>(millis() - sLastDistanceAt) >= DISTANCE_TIMEOUT_MS)
-        sLastDistance = 0;
-
-    return static_cast<float>(sLastDistance);
+    if (ready) {
+        const uint16_t value = distanceSensor.read(false);
+        const auto status = distanceSensor.ranging_data.range_status;
+        const bool valid = status == VL53L1X::RangeValid || status == VL53L1X::RangeValidMinRangeClipped || status == VL53L1X::RangeValidNoWrapCheckFail;
+        if (distanceSensor.last_status == 0 && valid) distanceSample = {static_cast<float>(value), millis(), SensorStatus::Ok};
+        else distanceSample.status = SensorStatus::Unavailable;
+    }
+    distanceSample = freshSample(distanceSample, millis());
+    return distanceSample;
 }

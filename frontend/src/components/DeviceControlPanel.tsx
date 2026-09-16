@@ -1,6 +1,9 @@
 import { For, Show } from "solid-js";
 import { deviceStore, isPending } from "../store/deviceStore";
 import { setOutput, turnAllOff } from "../device/actions";
+import { manualBlocked } from "../program/actions";
+import { programBusy, programStore } from "../store/programStore";
+import { deviceSource } from "../store/deviceStore";
 
 export default function DeviceControlPanel() {
   const outputs = () =>
@@ -17,7 +20,7 @@ export default function DeviceControlPanel() {
         <button
           type="button"
           class="ghost-button"
-          disabled={!anyOn()}
+          disabled={!anyOn() && !programBusy() && (deviceSource === "dummy" || programStore.known)}
           onClick={() => void turnAllOff()}
         >
           すべて消す
@@ -48,7 +51,7 @@ export default function DeviceControlPanel() {
                   }}
                   aria-checked={on()}
                   aria-label={`${device.label}を${on() ? "消す" : "つける"}`}
-                  disabled={pending()}
+                  disabled={pending() || manualBlocked()}
                   // 表示中の状態から「したい状態」を決めて送る。反転はESP32側に任せない。
                   onClick={() => void setOutput(device.id, !on())}
                 >
@@ -72,7 +75,7 @@ export default function DeviceControlPanel() {
       </Show>
 
       <p class="device-note">
-        ブロックの実行を始めると、この状態はプログラム側から書き換わります。
+        実行中の個別操作はできません。「すべて消す」で停止して全出力をOFFにします。
       </p>
     </aside>
   );

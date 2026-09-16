@@ -16,6 +16,6 @@ export const dummyCatalog = (): Device[] => [
 
 // ダミーのセンサ値。実機と同じ`devices`イベントの形に合わせて返す。
 export const dummySensorValues = (tick: number) => [
-  { id: "temperature", state: { value: Number((24.5 + Math.sin(tick / 5)).toFixed(2)) } },
-  { id: "distance", state: { value: Math.round(300 + 100 * Math.sin(tick / 3)) } },
+  { id: "temperature", state: { value: Number((24.5 + Math.sin(tick / 5)).toFixed(2)), status: "ok" as const } },
+  { id: "distance", state: { value: Math.round(300 + 100 * Math.sin(tick / 3)), status: "ok" as const } },
 ];

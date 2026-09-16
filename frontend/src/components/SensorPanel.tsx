@@ -17,8 +17,8 @@ export default function SensorPanel() {
       <div class="sensor-readings">
         <For each={sensors()}>
           {(device) => {
-            let value = createMemo(() =>
-              device.id !== "temperature"
+            const value = createMemo(() =>
+              device.state.status !== "ok" ? null : device.id !== "temperature"
                 ? device.state.value
                 : device.state.value?.toFixed(2),
             );
@@ -38,6 +38,12 @@ export default function SensorPanel() {
                   <span id={device.id}>{value() ?? "--"}</span>
                   <span class="unit">{device.unit}</span>
                 </p>
+                <Show when={device.state.status !== "ok"}>
+                  <p class="sensor-caption">{device.state.status === "stale" ? "値が更新されていません" : "取得できません"}</p>
+                </Show>
+                <Show when={device.description}>
+                  <p class="sensor-caption">{device.description}</p>
+                </Show>
               </section>
             );
           }}
