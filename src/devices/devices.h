@@ -2,6 +2,7 @@
 #define DEVICES_H
 
 #include <Arduino.h>
+#include "device_settings.h"
 #include "sensor_sample.h"
 
 // 部品の種別。操作できるかどうかの大分類。
@@ -18,8 +19,8 @@ enum class DeviceControl : uint8_t
     Switch,
 };
 
-// 部品の定義。ここが「どんな部品が存在するか」の唯一の定義になる。
-// 操作UIも将来のBlocklyのツールボックスも、この内容から組み立てる。
+// 部品の定義。起動時に部品リスト（device_settings.h）から組み立てる。
+// 操作UIもBlocklyのツールボックスも、この内容から組み立てる。
 struct DeviceDescriptor
 {
     const char *id;
@@ -44,8 +45,12 @@ struct DeviceSnapshot {
     uint32_t revision;
 };
 
+// 保存された部品リスト（無ければ最初のキット）を読み込み、
 // 全部品のピン設定と初期化を行い、状態をOFFにそろえる。
 void initDevices();
+
+// 起動時に読み込んだ部品リスト。保存し直しても再起動するまで変わらない。
+const PartList &activePartList();
 
 size_t deviceCount();
 const DeviceDescriptor &deviceDescriptor(size_t index);

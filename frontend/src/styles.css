@@ -416,3 +416,8 @@ h2 {
     height: 480px;
   }
 }
+
+/* settings */
+.settings-table th {
+  text-align: left;
+}

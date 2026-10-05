@@ -5,6 +5,7 @@ import {
   catalogBootId,
   clearSensorValues,
   deviceSource,
+  deviceStore,
   replaceCatalog,
   setError,
   setStatus,
@@ -126,7 +127,7 @@ export function initDeviceStore() {
     replaceCatalog(dummyCatalog());
     setStatus(DeviceStatus.LOCAL_DEV_DUMMY);
     let tick = 0;
-    const update = () => applyStates(dummySensorValues(tick++));
+    const update = () => applyStates(dummySensorValues(tick++, deviceStore.devices));
     update();
     dummyTimer = setInterval(update, 1000);
   });

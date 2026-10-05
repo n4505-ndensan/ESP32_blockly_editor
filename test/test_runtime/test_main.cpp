@@ -10,6 +10,7 @@
 #include <devices/sensor_sample.h>
 #include <devices/sensor_diagnostics.h>
 #include <devices/distance_sample.h>
+#include <devices/device_settings.h>
 #include <program_fixtures.h>
 #include <cstring>
 #include <memory>
@@ -427,6 +428,62 @@ static void test_engine_uses_held_value_and_stops_at_expiry()
     TEST_ASSERT_FALSE(hardware.on);
     engine.reset(); // Hardware lifetime must exceed the engine's lifetime.
 }
+// 部品リストの規則。画面側（frontend/tests/settings.test.ts）と同じ判定を確かめる。
+#define KIT_PARTS R"({"id":"led_red","type":"led","label":"赤色LED","pins":[5]},{"id":"temperature","type":"thermo","label":"温度","pins":[21,22]},{"id":"distance","type":"tof","label":"距離","pins":[21,22]})"
+static const char *partListProblem(const char *json)
+{
+    static char message[160];
+    static PartList list;
+    message[0] = '\0';
+    JsonDocument doc;
+    TEST_ASSERT_FALSE((bool)deserializeJson(doc, json));
+    return readPartList(doc.as<JsonVariantConst>(), list, message, sizeof(message)) ? nullptr : message;
+}
+static void assertProblem(const char *json, const char *expected)
+{
+    const char *problem = partListProblem(json);
+    TEST_ASSERT_NOT_NULL_MESSAGE(problem, json);
+    TEST_ASSERT_NOT_NULL_MESSAGE(strstr(problem, expected), problem);
+}
+static void test_default_part_list_round_trips()
+{
+    static PartList original, restored;
+    char message[160] = {};
+    defaultPartList(original);
+    TEST_ASSERT_TRUE_MESSAGE(validatePartList(original, message, sizeof(message)), message);
+    JsonDocument doc;
+    writePartList(doc.to<JsonVariant>(), original);
+    writeCandidatePins(doc.as<JsonVariant>());
+    // 保存・応答は書き出した後でシリアライズする。元の文字列を壊しても中身が残ること。
+    strcpy(original.parts[0].label, "xxx");
+    TEST_ASSERT_TRUE_MESSAGE(readPartList(doc.as<JsonVariantConst>(), restored, message, sizeof(message)), message);
+    TEST_ASSERT_EQUAL(8, restored.count);
+    TEST_ASSERT_EQUAL_STRING("白色LED", restored.parts[0].label);
+    TEST_ASSERT_EQUAL_STRING("distance", restored.parts[7].id);
+    TEST_ASSERT_EQUAL(21, restored.parts[7].pins[0]);
+    TEST_ASSERT_EQUAL(22, restored.parts[7].pins[1]);
+    TEST_ASSERT_EQUAL(2, doc["candidatePins"][0].as<int>());
+}
+static void test_part_list_rules()
+{
+    TEST_ASSERT_NULL(partListProblem(R"({"parts":[)" KIT_PARTS "]}"));
+    // 最初のキットの部品も特別扱いしない。センサを外せばSDA・SCLだったピンを使える。
+    TEST_ASSERT_NULL(partListProblem(R"({"parts":[{"id":"led_red","type":"led","label":"赤","pins":[21]}]})"));
+    assertProblem(R"({"parts":[)" KIT_PARTS R"(,{"id":"led_2","type":"led","label":"LED 2","pins":[5]}]})", "「赤色LED」と「LED 2」");
+    assertProblem(R"({"parts":[)" KIT_PARTS R"(,{"id":"led_2","type":"led","label":"LED 2","pins":[12]}]})", "使えないピン");
+    assertProblem(R"({"parts":[)" KIT_PARTS R"(,{"id":"temperature_2","type":"thermo","label":"温度 2","pins":[21,22]}]})", "温度センサは1個まで");
+    assertProblem(R"({"parts":[)" KIT_PARTS R"(,{"id":"temperature_2","type":"thermo","label":"温度 2","pins":[22,21]}]})", "重なって");
+    assertProblem(R"({"parts":[)" KIT_PARTS R"(,{"id":"temperature_2","type":"thermo","label":"温度 2","pins":[25,26]}]})", "1組まで");
+    assertProblem(R"({"parts":[{"id":"temperature","type":"thermo","label":"温度","pins":[25,25]}]})", "別のピン");
+    assertProblem(R"({"parts":[{"id":"temperature","type":"thermo","label":"温度","pins":[25]}]})", "ピンを選んで");
+    assertProblem(R"({"parts":[{"id":"led_2","type":"led","label":"A","pins":[13]},{"id":"led_3","type":"led","label":"A","pins":[14]}]})", "名前が重なって");
+    assertProblem(R"({"parts":[{"id":"led_2","type":"led","label":"A","pins":[13]},{"id":"led_2","type":"led","label":"B","pins":[14]}]})", "部品ID");
+    assertProblem(R"({"parts":[{"id":"LED","type":"led","label":"A","pins":[13]}]})", "部品ID");
+    assertProblem(R"({"parts":[{"id":"led_2","type":"led","label":"  ","pins":[13]}]})", "名前が空");
+    assertProblem(R"({"parts":[{"id":"led_2","type":"lamp","label":"A","pins":[13]}]})", "種類が不正");
+    assertProblem(R"({"parts":[{"id":"led_2","type":"led","label":"A","pins":[1.5]}]})", "ピンが不正");
+    assertProblem(R"({"devices":[]})", "parts");
+}
 int runTests()
 {
     UNITY_BEGIN();
@@ -458,6 +515,8 @@ int runTests()
     RUN_TEST(test_distance_failure_never_invents_or_resurrects_value);
     RUN_TEST(test_distance_held_clock_wrap_and_notifications);
     RUN_TEST(test_engine_uses_held_value_and_stops_at_expiry);
+    RUN_TEST(test_default_part_list_round_trips);
+    RUN_TEST(test_part_list_rules);
     return UNITY_END();
 }
 #ifdef ARDUINO

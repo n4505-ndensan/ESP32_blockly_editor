@@ -74,18 +74,30 @@ namespace
     }
 #endif
 }
-void initSensors()
+void initSensors(int sda, int scl, bool thermal, bool distance)
 {
-    Wire.begin();
+    // センサが無いときはI2Cを開かない。SDA・SCLだったピンをLEDなどに使っていてもぶつからない。
+    if (sda < 0 || (!thermal && !distance))
+    {
+        Serial.println("No I2C sensors in the part list");
+        return;
+    }
+    Wire.begin(sda, scl);
     Wire.setClock(400000);
     Wire.setTimeOut(10);
-    distanceSensor.setTimeout(1000);
-    distanceInitialized = distanceSensor.init();
-    if (distanceInitialized)
-        distanceSensor.startContinuous(100);
-    Serial.println(distanceInitialized ? "VL53L1X initialized" : "VL53L1X unavailable");
-    thermalInitialized = thermalSensor.begin(0x68);
-    Serial.println(thermalInitialized ? "AMG8833 initialized" : "AMG8833 unavailable");
+    if (distance)
+    {
+        distanceSensor.setTimeout(1000);
+        distanceInitialized = distanceSensor.init();
+        if (distanceInitialized)
+            distanceSensor.startContinuous(100);
+        Serial.println(distanceInitialized ? "VL53L1X initialized" : "VL53L1X unavailable");
+    }
+    if (thermal)
+    {
+        thermalInitialized = thermalSensor.begin(0x68);
+        Serial.println(thermalInitialized ? "AMG8833 initialized" : "AMG8833 unavailable");
+    }
 #ifdef SENSOR_DIAGNOSTICS
     JsonDocument doc;
     doc["sensor"] = "distance";

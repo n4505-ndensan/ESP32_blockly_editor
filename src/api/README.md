@@ -7,6 +7,8 @@
 | POST /api/program/run | `{version:1,body:[...]}`を検証し、202で開始受付時の実行状態 |
 | POST /api/program/stop | 停止と全出力OFF。202で受付時の実行状態 |
 | GET /api/program/state | 現在の実行状態 |
+| GET /api/settings/devices | 部品リスト`{candidatePins,parts}`。起動時に読み込んだもの |
+| POST /api/settings/devices | `{parts}`で部品リスト全体を置き換え。200`{restarting:true}`の後に再起動 |
 | SSE /events | devicesとprogram。接続直後は両方のスナップショット |
 
 実行状態は`{bootId,revision,runId,state,error}`。
@@ -25,3 +27,6 @@ devicesイベントは`{ts,bootId,revision,devices:[{id,state}]}`。
 プログラム受信はContent-Length付きのapplication/jsonを使う。TCPの分割受信に対応し、
 中断時に受信バッファを解放する。長さ不明のchunkedリクエストは受け付けない。
 上限と排他はADR 0005・0006・0007を参照。
+
+部品リストの保存は実行中なら409、規則違反は422`invalid_settings`（`message`に理由）。
+保存はNVSに行い、約0.5秒後に再起動して反映する。詳細はADR 0009を参照。
