@@ -1,6 +1,15 @@
 // Loaded only by Playwright through the Vite development server. No production hook.
 import * as Blockly from "blockly/core";
 
+export function deviceFields(flyout = false) {
+  const main = Blockly.getMainWorkspace() as Blockly.WorkspaceSvg;
+  const workspace = flyout ? main.getFlyout()!.getWorkspace() : main;
+  return workspace.getAllBlocks(false).flatMap((block) => {
+    const field = block.getField("DEVICE");
+    return field ? [{ id: block.id, value: field.getValue(), text: field.getText() }] : [];
+  });
+}
+
 export function loadScenario(name: "blink" | "forever" | "error") {
   const workspace = Blockly.getMainWorkspace() as Blockly.WorkspaceSvg;
   workspace.clear();

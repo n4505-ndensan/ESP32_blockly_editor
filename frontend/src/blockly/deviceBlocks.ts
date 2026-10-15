@@ -4,28 +4,55 @@ import { LIMITS } from "../program/types";
 
 let catalog: readonly Device[] = [];
 let registered = false;
-function options(this: Blockly.FieldDropdown, output: boolean): [string, string][] {
+function options(this: Blockly.FieldDropdown, output: boolean, restoringId?: string): [string, string][] {
   const choices: [string, string][] = catalog
     .filter((d) => output ? d.kind === "output" && d.control === "switch" : d.kind === "sensor")
     .map((d) => [d.label + (d.unit ? ` (${d.unit})` : ""), d.id]);
-  const current = this.getValue();
+  const current = restoringId ?? this.getValue();
   if (current && !choices.some(([, id]) => id === current)) choices.push([`${current}（未接続）`, current]);
   return choices.length ? choices : [["部品なし", ""]];
 }
-export function configureDeviceBlocks(devices: readonly Device[]) {
+
+class DeviceDropdown extends Blockly.FieldDropdown {
+  private restoringId?: string;
+
+  constructor(output: boolean) {
+    super(function () { return options.call(this, output, (this as DeviceDropdown).restoringId); });
+  }
+
+  override loadState(state: unknown) {
+    // Include the saved ID before Blockly validates it, even before the catalog arrives.
+    this.restoringId = typeof state === "string" ? state : undefined;
+    try { super.loadState(state); }
+    finally { this.restoringId = undefined; }
+  }
+
+  refresh() {
+    // Refresh the cached options and selected label without changing the device ID.
+    this.getOptions(false);
+    this.setValue(this.getValue());
+    this.forceRerender();
+  }
+}
+
+export function configureDeviceBlocks(devices: readonly Device[], workspace?: Blockly.Workspace) {
   catalog = devices;
+  for (const block of workspace?.getAllBlocks(false) ?? []) {
+    const field = block.getField("DEVICE");
+    if (field instanceof DeviceDropdown) field.refresh();
+  }
   if (registered) return;
   registered = true;
   Blockly.Blocks.device_sensor = {
     init(this: Blockly.Block) {
-      this.appendDummyInput().appendField(new Blockly.FieldDropdown(function () { return options.call(this, false); }), "DEVICE");
+      this.appendDummyInput().appendField(new DeviceDropdown(false), "DEVICE");
       this.setOutput(true, "Number"); this.setColour(230);
       this.setTooltip("センサの最新値を読み取ります。取得できない場合は実行エラーになります。");
     },
   };
   Blockly.Blocks.device_set = {
     init(this: Blockly.Block) {
-      this.appendDummyInput().appendField(new Blockly.FieldDropdown(function () { return options.call(this, true); }), "DEVICE")
+      this.appendDummyInput().appendField(new DeviceDropdown(true), "DEVICE")
         .appendField("を").appendField(new Blockly.FieldDropdown([["ON", "ON"], ["OFF", "OFF"]]), "STATE");
       this.setPreviousStatement(true); this.setNextStatement(true); this.setColour(20);
     },

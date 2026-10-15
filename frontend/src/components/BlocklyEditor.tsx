@@ -121,7 +121,7 @@ export default function BlocklyEditor(props: { onReady: (editor: EditorHandle) =
   createEffect(() => {
     // Read only descriptor fields so sensor SSE updates do not rebuild the toolbox.
     const catalog = deviceStore.devices.map((d) => ({ id: d.id, label: d.label, description: d.description, unit: d.unit, kind: d.kind, control: d.control, state: {} }));
-    configureDeviceBlocks(catalog);
+    configureDeviceBlocks(catalog, workspace);
     const toolbox = createToolbox(catalog);
     workspace?.updateToolbox(toolbox);
   });
