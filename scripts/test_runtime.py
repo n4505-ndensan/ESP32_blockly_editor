@@ -31,7 +31,7 @@ for line in environment_text.splitlines():
 include = root / ".pio/libdeps/esp32dev/ArduinoJson/src"
 if not include.exists():
     raise SystemExit("First install the project's PlatformIO ArduinoJson dependency.")
-sources = [root / "src/runtime/program.cpp", root / "src/runtime/engine.cpp", root / "test/test_runtime/test_main.cpp", unity / "unity.c"]
+sources = [root / "src/runtime/program.cpp", root / "src/runtime/engine.cpp", root / "src/devices/device_settings.cpp", root / "test/test_runtime/test_main.cpp", unity / "unity.c"]
 args = ["cl", "/nologo", "/std:c++17", "/EHsc", "/utf-8", "/W3", "/D_CRT_SECURE_NO_WARNINGS", f"/I{root / 'src'}", f"/I{include}", f"/I{unity}", f"/I{out}", *map(str, sources), "/Fe:runtime_tests.exe"]
 subprocess.run(args, env=environment, cwd=out, check=True)
 subprocess.run([str(out / "runtime_tests.exe")], cwd=out, check=True)

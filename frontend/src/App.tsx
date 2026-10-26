@@ -3,6 +3,7 @@ import BlocklyEditor from "./components/BlocklyEditor";
 import type { EditorHandle } from "./components/BlocklyEditor";
 import DeviceControlPanel from "./components/DeviceControlPanel";
 import SensorPanel from "./components/SensorPanel";
+import SettingsDialog from "./components/SettingsDialog";
 import { initDeviceStore } from "./device/connection";
 import { deviceSource } from "./store/deviceStore";
 import { programBusy, programStore } from "./store/programStore";
@@ -19,6 +20,7 @@ export default function App() {
   const [sent, setSent] = createSignal<{ revision: number; bootId: string; runId: number }>();
   const [attemptRevision, setAttemptRevision] = createSignal<number>();
   const [validated, setValidated] = createSignal(false);
+  const [settingsOpen, setSettingsOpen] = createSignal(false);
   const validate = () => {
     const handle = editor(); if (!handle) return;
     setAttemptRevision(handle.revision()); setDiagnostic(null); setValidated(false);
@@ -55,8 +57,10 @@ export default function App() {
           <button class="ghost-button" disabled={!editor()} onClick={validate}>ブロックを確認</button>
           <button class="run-button" disabled={!editor() || !canRun()} onClick={() => void run()}>実行 / RUN</button>
           <button class="ghost-button" disabled={deviceSource === "dummy"} onClick={() => void stopProgram()}>停止 / STOP</button>
+          <button class="ghost-button" onClick={() => setSettingsOpen(true)}>設定</button>
         </div>
       </header>
+      <SettingsDialog open={settingsOpen()} onClose={() => setSettingsOpen(false)} />
       <Show when={message()}><p class="program-error" role="alert">{message()}</p></Show>
       <Show when={validated() && !message()}><p class="program-note" role="status">ブロックに問題はありません。</p></Show>
       <Show when={deviceSource === "dummy" || programBusy()}>

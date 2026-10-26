@@ -85,10 +85,28 @@ p {
   cursor: default;
 }
 
-.program-controls { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; }
-.program-status { font-size: 13px; }
-.program-error { padding: 10px 18px; color: #903a2c; background: #fff0ed; border-inline: 1px solid #222; }
-.program-note { padding: 6px 18px; font-size: 12px; background: #f2f6f4; border-inline: 1px solid #222; }
+.program-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.program-status {
+  font-size: 13px;
+}
+.program-error {
+  padding: 10px 18px;
+  color: #903a2c;
+  background: #fff0ed;
+  border-inline: 1px solid #222;
+}
+.program-note {
+  padding: 6px 18px;
+  font-size: 12px;
+  background: #f2f6f4;
+  border-inline: 1px solid #222;
+}
 
 h1 {
   font-size: clamp(22px, 3vw, 28px);
@@ -142,14 +160,15 @@ h2 {
   padding: 0 24px;
 }
 .sensor-reading {
-  padding: 16px 0;
+  display: flex;
+  padding: 8px 0;
   border-top: 1px solid #edf0ee;
 }
 .sensor-reading h3 {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 500;
 }
 .sensor-caption {
@@ -158,23 +177,24 @@ h2 {
   margin-left: auto;
 }
 .sensor-mark {
-  width: 8px;
-  height: 8px;
+  width: 12px;
+  height: 12px;
   border-radius: 2px;
 }
-.temperature-mark {
+.sensor-mark-thermo {
   background: #c87c59;
 }
-.distance-mark {
+.sensor-mark-tof {
   background: #5a8ca8;
 }
 
 .sensor-value {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  margin: 6px 0;
-  font-size: 38px;
+  gap: 4px;
+  margin-left: auto;
+  margin-right: 6px;
+  font-size: 24px;
   font-weight: 550;
   line-height: 1.4;
   font-variant-numeric: tabular-nums;
@@ -360,6 +380,111 @@ h2 {
 
 .blockly-editor .blocklySvg {
   border: 0;
+}
+
+.settings-dialog {
+  width: min(820px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid #222222;
+  background: #fff;
+  color: inherit;
+}
+.settings-dialog::backdrop {
+  background: #15201c40;
+}
+.settings-title {
+  border-bottom: 1px solid #222222;
+}
+.settings-section h3 {
+  padding: 12px 24px 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.settings-message {
+  padding: 12px 24px;
+  border-top: 1px solid #edf0ee;
+  color: #63786b;
+  font-size: 12px;
+}
+
+.settings-table {
+  width: calc(100% - 48px);
+  margin: 0 24px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.settings-table th {
+  padding: 6px 8px;
+  color: #6d7d73;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: left;
+}
+.settings-table td {
+  padding: 6px 8px;
+  border-top: 1px solid #edf0ee;
+  white-space: nowrap;
+}
+.settings-table th:first-child,
+.settings-table td:first-child {
+  padding-left: 0;
+}
+.settings-table th:last-child,
+.settings-table td:last-child {
+  padding-right: 0;
+  text-align: right;
+}
+.settings-table tfoot::before {
+  content: "";
+  display: table-row;
+  height: 12px;
+}
+.settings-table tfoot td {
+  border-top-color: #d3dfd9;
+}
+.settings-add-button {
+  background: #2090ff;
+  color: #fff;
+}
+.settings-add-button:hover:not(:disabled) {
+  background: #1b7ad8;
+}
+
+.settings-table input,
+.settings-table select {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid #d3dfd9;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+}
+.settings-table input:focus-visible,
+.settings-table select:focus-visible {
+  outline: 2px solid #438568;
+  outline-offset: 1px;
+}
+
+.settings-problems {
+  margin: 12px 0 0;
+  padding: 10px 24px 10px 40px;
+  border-top: 1px solid #f0ded9;
+  background: #fbf1ef;
+  color: #9d4b3f;
+  font-size: 11px;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 24px;
+  border-top: 1px solid #edf0ee;
 }
 
 @media (max-width: 900px) {

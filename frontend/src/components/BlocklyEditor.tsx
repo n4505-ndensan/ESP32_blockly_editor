@@ -120,8 +120,8 @@ export default function BlocklyEditor(props: { onReady: (editor: EditorHandle) =
   // カタログはESP32から遅れて届く。届いた分だけ部品カテゴリを作り直す。
   createEffect(() => {
     // Read only descriptor fields so sensor SSE updates do not rebuild the toolbox.
-    const catalog = deviceStore.devices.map((d) => ({ id: d.id, label: d.label, description: d.description, unit: d.unit, kind: d.kind, control: d.control, state: {} }));
-    configureDeviceBlocks(catalog);
+    const catalog = deviceStore.devices.map((d) => ({ id: d.id, label: d.label, type: d.type, unit: d.unit, kind: d.kind, control: d.control, state: {} }));
+    configureDeviceBlocks(catalog, workspace);
     const toolbox = createToolbox(catalog);
     workspace?.updateToolbox(toolbox);
   });

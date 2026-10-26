@@ -31,14 +31,16 @@ AST実行を始めると部品はプログラム側から動くが、変化は�
 カタログ取得後にSSEを開始し、devices・program両方のスナップショットを待つ。
 センサ状態は`{value:number|null,status:"ok"|"held"|"unavailable"|"stale"}`。
 `ok`は正常値、`held`は利用可能な直近正常値で、どちらもAPIのvalueは数値。
-`sensorPresentation.ts`で表示を変換し、`held`は数値・単位と「直近値を使用中」を表示する。
+`sensorPresentation.ts`で表示を変換し、`held`は`ok`と同じく数値・単位を表示する。
 `unavailable`・`stale`は`value:null`で、画面は`--`と理由を表示する。
 保持・鮮度の判定はESP32で行い、ブラウザでは過去値の保持や期限延長をしない。
 距離のWrapTargetFail・SignalFailだけが保持対象で、期限は最後の正常取得から1000ms未満。
 他の異常やI2C異常による即時無効化後は、新規正常測定まで復旧しない。
 
-`dummyCatalog.ts`はPCだけでUIを触るための写しで、部品の定義そのものは
-ファームウェア（`src/devices/devices.cpp`）が持つ。
+`dummyCatalog.ts`はPCだけでUIを触るための写しで、部品リストの初期値と規則は
+ファームウェア（`src/devices/device_settings.cpp`）が持つ。
+部品リストの編集画面は`components/SettingsDialog.tsx`、規則と通信は`settings/`にある。
+ダミーモードでは保存した部品リストでカタログを直接入れ替える（メモリだけで、再読み込みで初期値に戻る）。
 
 通信仕様は[adr/0001](../../../adr/0001-device-state-and-control.md)、
 センサ有効性は[adr/0007](../../../adr/0007-sensor-validity.md)と

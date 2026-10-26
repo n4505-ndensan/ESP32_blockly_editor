@@ -11,22 +11,38 @@
 
 namespace
 {
-    VL53L1X distanceSensor;
-    Adafruit_AMG88xx thermalSensor;
-    bool distanceInitialized = false, thermalInitialized = false;
-    SensorSample distanceSample, thermalSample;
+    // I2Cの1組につき、各種類のセンサは1個まで（アドレスが固定のため）。
+    struct BusSensors
+    {
+        TwoWire *wire = nullptr;
+        VL53L1X distanceSensor;
+        Adafruit_AMG88xx thermalSensor;
+        bool distanceInitialized = false, thermalInitialized = false;
+        SensorSample distanceSample, thermalSample;
 #ifdef SENSOR_DIAGNOSTICS
-    SensorDiagnosticHistory distanceHistory;
-    int distanceCause = 6;
+        SensorDiagnosticHistory distanceHistory;
+        int distanceCause = 6;
+#endif
+    };
+
+    TwoWire *const kWires[] = {&Wire, &Wire1};
+    static_assert(MAX_I2C_BUSES <= sizeof(kWires) / sizeof(kWires[0]), "I2Cの組の数がESP32のI2Cの数を超えている。");
+    BusSensors sBuses[MAX_I2C_BUSES];
+
+#ifdef SENSOR_DIAGNOSTICS
     // 0=ok, 1=init, 2=dataReady write failure, 3=read's final write failure,
     // 4=range quality failure, 5=stale, 6=awaiting first sample.
     // last_status cannot prove all I2C reads succeeded.
-    void logDistance(int cause, bool attempted, bool success, bool ready, int readyI2c, int readI2c, int rangeStatus)
+    void logDistance(uint8_t index, int cause, bool attempted, bool success, bool ready, int readyI2c, int readI2c, int rangeStatus)
     {
+        BusSensors &bus = sBuses[index];
+        VL53L1X &distanceSensor = bus.distanceSensor;
+        const SensorSample &distanceSample = bus.distanceSample;
+        SensorDiagnosticHistory &distanceHistory = bus.distanceHistory;
         const uint32_t now = millis();
         if (attempted)
             distanceHistory.record(success, success ? distanceSample.updatedAt : now);
-        distanceCause = cause;
+        bus.distanceCause = cause;
         const uint16_t key = cause == 4 ? uint16_t(16 + static_cast<int>(distanceSensor.ranging_data.range_status)) : uint16_t(cause);
         if (!distanceHistory.shouldLog(key, now))
             return;
@@ -34,6 +50,7 @@ namespace
         JsonDocument doc;
         doc["ts"] = now;
         doc["sensor"] = "distance";
+        doc["bus"] = index;
         doc["reason"] = names[cause];
         doc["status"] = sensorStatusName(distanceSample.status);
         doc["ready"] = ready;
@@ -74,55 +91,82 @@ namespace
     }
 #endif
 }
-void initSensors()
+void initSensors(const SensorBus *buses, size_t count)
 {
-    Wire.begin();
-    Wire.setClock(400000);
-    Wire.setTimeOut(10);
-    distanceSensor.setTimeout(1000);
-    distanceInitialized = distanceSensor.init();
-    if (distanceInitialized)
-        distanceSensor.startContinuous(100);
-    Serial.println(distanceInitialized ? "VL53L1X initialized" : "VL53L1X unavailable");
-    thermalInitialized = thermalSensor.begin(0x68);
-    Serial.println(thermalInitialized ? "AMG8833 initialized" : "AMG8833 unavailable");
+    // センサが無いときはI2Cを開かない。SDA・SCLだったピンをLEDなどに使っていてもぶつからない。
+    if (count == 0)
+    {
+        Serial.println("No I2C sensors in the part list");
+        return;
+    }
+    for (size_t index = 0; index < count && index < MAX_I2C_BUSES; ++index)
+    {
+        const SensorBus &config = buses[index];
+        BusSensors &bus = sBuses[index];
+        bus.wire = kWires[index];
+        bus.wire->begin(config.sda, config.scl);
+        bus.wire->setClock(400000);
+        bus.wire->setTimeOut(10);
+        Serial.printf("I2C bus %u: SDA GPIO%u / SCL GPIO%u\n", static_cast<unsigned>(index), config.sda, config.scl);
+        if (config.distance)
+        {
+            bus.distanceSensor.setBus(bus.wire);
+            bus.distanceSensor.setTimeout(1000);
+            bus.distanceInitialized = bus.distanceSensor.init();
+            if (bus.distanceInitialized)
+                bus.distanceSensor.startContinuous(100);
+            Serial.println(bus.distanceInitialized ? "VL53L1X initialized" : "VL53L1X unavailable");
+        }
+        if (config.thermal)
+        {
+            bus.thermalInitialized = bus.thermalSensor.begin(0x68, bus.wire);
+            Serial.println(bus.thermalInitialized ? "AMG8833 initialized" : "AMG8833 unavailable");
+        }
 #ifdef SENSOR_DIAGNOSTICS
-    JsonDocument doc;
-    doc["sensor"] = "distance";
-    doc["initialized"] = distanceInitialized;
-    doc["mode"] = distanceSensor.getDistanceMode() == VL53L1X::Long ? "long" : distanceSensor.getDistanceMode() == VL53L1X::Short ? "short"
-                                                                                                                                  : "other";
-    if (distanceInitialized)
-        doc["budgetUs"] = distanceSensor.getMeasurementTimingBudget();
-    doc["periodMs"] = 100;
-    doc["wireClockHz"] = 400000;
-    doc["wireTimeoutMs"] = 10;
-    doc["libraryWaitTimeoutMs"] = distanceSensor.getTimeout();
-    Serial.print("SENSOR_CONFIG ");
-    serializeJson(doc, Serial);
-    Serial.println();
+        if (!config.distance)
+            continue;
+        VL53L1X &distanceSensor = bus.distanceSensor;
+        JsonDocument doc;
+        doc["sensor"] = "distance";
+        doc["bus"] = index;
+        doc["initialized"] = bus.distanceInitialized;
+        doc["mode"] = distanceSensor.getDistanceMode() == VL53L1X::Long ? "long" : distanceSensor.getDistanceMode() == VL53L1X::Short ? "short"
+                                                                                                                                      : "other";
+        if (bus.distanceInitialized)
+            doc["budgetUs"] = distanceSensor.getMeasurementTimingBudget();
+        doc["periodMs"] = 100;
+        doc["wireClockHz"] = 400000;
+        doc["wireTimeoutMs"] = 10;
+        doc["libraryWaitTimeoutMs"] = distanceSensor.getTimeout();
+        Serial.print("SENSOR_CONFIG ");
+        serializeJson(doc, Serial);
+        Serial.println();
 #endif
+    }
     delay(1000);
 }
-SensorSample readTemperature()
+SensorSample readTemperature(uint8_t index)
 {
-    if (!thermalInitialized)
+    BusSensors &bus = sBuses[index];
+    SensorSample &thermalSample = bus.thermalSample;
+    if (!bus.thermalInitialized)
         return thermalSample;
+    TwoWire &wire = *bus.wire;
     // Adafruit's readPixels discards transfer errors. Check every transfer here.
     uint8_t pixels[128];
     for (uint8_t offset = 0; offset < sizeof(pixels); offset += 32)
     {
-        Wire.beginTransmission(0x68);
-        Wire.write(static_cast<uint8_t>(0x80 + offset));
-        if (Wire.endTransmission(false) != 0 || Wire.requestFrom(uint8_t(0x68), uint8_t(32)) != 32)
+        wire.beginTransmission(0x68);
+        wire.write(static_cast<uint8_t>(0x80 + offset));
+        if (wire.endTransmission(false) != 0 || wire.requestFrom(uint8_t(0x68), uint8_t(32)) != 32)
         {
-            while (Wire.available())
-                Wire.read();
+            while (wire.available())
+                wire.read();
             thermalSample.status = SensorStatus::Unavailable;
             return thermalSample;
         }
         for (uint8_t i = 0; i < 32; ++i)
-            pixels[offset + i] = Wire.read();
+            pixels[offset + i] = wire.read();
     }
     float highest = -std::numeric_limits<float>::infinity();
     for (uint8_t i = 0; i < 128; i += 2)
@@ -135,12 +179,15 @@ SensorSample readTemperature()
     thermalSample = {highest, millis(), SensorStatus::Ok};
     return thermalSample;
 }
-SensorSample readDistance()
+SensorSample readDistance(uint8_t index)
 {
-    if (!distanceInitialized)
+    BusSensors &bus = sBuses[index];
+    VL53L1X &distanceSensor = bus.distanceSensor;
+    SensorSample &distanceSample = bus.distanceSample;
+    if (!bus.distanceInitialized)
     {
 #ifdef SENSOR_DIAGNOSTICS
-        logDistance(1, false, false, false, -1, -1, -1);
+        logDistance(index, 1, false, false, false, -1, -1, -1);
 #endif
         return distanceSample;
     }
@@ -149,13 +196,13 @@ SensorSample readDistance()
     const int readyI2c = distanceSensor.last_status;
     int readI2c = -1, rangeStatus = -1;
     bool success = false;
-    int cause = distanceCause;
+    int cause = bus.distanceCause;
 #endif
     if (distanceSensor.last_status != 0)
     {
         distanceSample = updateDistanceSample(distanceSample, DistanceReadResult::FatalFailure, 0, millis());
 #ifdef SENSOR_DIAGNOSTICS
-        logDistance(2, true, false, ready, readyI2c, -1, -1);
+        logDistance(index, 2, true, false, ready, readyI2c, -1, -1);
 #endif
         return distanceSample;
     }
@@ -182,7 +229,7 @@ SensorSample readDistance()
 #ifdef SENSOR_DIAGNOSTICS
     if (distanceSample.status == SensorStatus::Stale)
         cause = 5;
-    logDistance(cause, ready, success, ready, readyI2c, readI2c, rangeStatus);
+    logDistance(index, cause, ready, success, ready, readyI2c, readI2c, rangeStatus);
 #endif
     return distanceSample;
 }

@@ -8,6 +8,7 @@
 #include <api/device_api.h>
 #include <devices/devices.h>
 #include <api/program_api.h>
+#include <api/settings_api.h>
 #include <runtime/runner.h>
 
 #define HTTP_PORT 80
@@ -73,6 +74,7 @@ void setup()
 
   registerDeviceApi(server);
   registerProgramApi(server);
+  registerSettingsApi(server);
 
   // Serve the SolidJS build and its assets; keep /events on the SSE handler.
   server.serveStatic("/", LittleFS, "/web/").setDefaultFile("index.html");
@@ -86,6 +88,7 @@ void loop()
   static uint32_t lastPublish = 0;
 
   const uint32_t now = millis();
+  serviceSettingsRestart();
   tickProgram();
 #ifdef SENSOR_DIAGNOSTICS
   publishSensorReadFailure();

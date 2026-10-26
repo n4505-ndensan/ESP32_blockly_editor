@@ -17,7 +17,7 @@
 | status | APIのvalue・画面 | 意味 |
 | --- | --- | --- |
 | ok | 数値 | 正常取得した利用可能な値 |
-| held | 数値と「直近値を使用中」 | 距離のWrapTargetFail・SignalFail時に利用可能な直近正常値を使用 |
+| held | 数値（okと同じ表示） | 距離のWrapTargetFail・SignalFail時に利用可能な直近正常値を使用 |
 | unavailable | null・`--`と「取得できません」 | 未取得、他の測距異常、検出したI2C異常などで利用不可 |
 | stale | null・`--`と「値が更新されていません」 | 最後の正常取得から1000ms以上経過 |
 
@@ -38,6 +38,8 @@
 - `SENSOR`：距離センサの状態変化、測距ステータス、信号・外光強度、最後の正常取得からの時間、失敗数。
 - `SENSOR_RUNTIME`：プログラムが無効なセンサを参照した時点のsensor、runId、blockId、状態、取得時刻と保存値。
   ランタイムのロック内では必要情報だけを退避し、ログ生成・出力はロック外で行います。
+
+`SENSOR_CONFIG`と`SENSOR`の`bus`は、距離センサがつながっているI2Cの組の番号（0または1）です。
 
 `SENSOR.reason`：
 
