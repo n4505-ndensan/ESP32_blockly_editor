@@ -1,5 +1,5 @@
-import type { Part } from "../settings/types";
-import type { Device } from "./types";
+import type { Device } from "~/device/types";
+import type { Part } from "~/settings/types";
 
 // PCだけでUIを触るための仮の部品リスト。ESP32から配信したときは`GET /api/devices`の結果を使う。
 // 部品リストの初期値はファームウェア側（src/devices/devices.cpp）が持つ。
@@ -17,9 +17,35 @@ export const dummyParts: Part[] = [
 
 /** 部品リストの1行をカタログ1件にする。説明・単位は種類で決まる。 */
 export const partDevice = ({ id, type, label }: Part): Device => {
-  if (type === "thermo") return { id, label, type, unit: "℃", kind: "sensor", control: "none", state: {} };
-  if (type === "tof") return { id, label, type, unit: "mm", kind: "sensor", control: "none", state: {} };
-  return { id, label, type, unit: "", kind: "output", control: "switch", state: { on: false } };
+  if (type === "thermo")
+    return {
+      id,
+      label,
+      type,
+      unit: "℃",
+      kind: "sensor",
+      control: "none",
+      state: {},
+    };
+  if (type === "tof")
+    return {
+      id,
+      label,
+      type,
+      unit: "mm",
+      kind: "sensor",
+      control: "none",
+      state: {},
+    };
+  return {
+    id,
+    label,
+    type,
+    unit: "",
+    kind: "output",
+    control: "switch",
+    state: { on: false },
+  };
 };
 
 export const dummyCatalog = (): Device[] => dummyParts.map(partDevice);
@@ -32,7 +58,10 @@ export const dummySensorValues = (tick: number, devices: readonly Device[]) =>
     .map((device) => ({
       id: device.id,
       state: {
-        value: device.type === "thermo" ? Number((24.5 + Math.sin(tick / 5)).toFixed(2)) : Math.round(300 + 100 * Math.sin(tick / 3)),
+        value:
+          device.type === "thermo"
+            ? Number((24.5 + Math.sin(tick / 5)).toFixed(2))
+            : Math.round(300 + 100 * Math.sin(tick / 3)),
         status: "ok" as const,
       },
     }));

@@ -10,7 +10,9 @@
   "scripts": {
     "prepare:media": "node scripts/prepare-blockly-media.mjs",
     "dev": "pnpm prepare:media && vite",
-    "check": "tsc --noEmit",
+    "check": "tsc --noEmit && pnpm lint",
+    "lint": "eslint .",
+    "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:browser": "playwright test",
@@ -24,7 +26,11 @@
   "devDependencies": {
     "@acab/ecsstatic": "^0.9.0",
     "@playwright/test": "^1.63.0",
+    "eslint": "^10.13.0",
+    "prettier": "^3.9.10",
+    "prettier-plugin-organize-imports": "^4.3.0",
     "typescript": "~5.9.3",
+    "typescript-eslint": "^8.72.0",
     "vite": "^8.3.0",
     "vite-plugin-solid": "^2.11.14",
     "vitest": "5.0.0"

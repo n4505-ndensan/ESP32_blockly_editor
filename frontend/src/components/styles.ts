@@ -6,24 +6,17 @@ export const panel = css`
   min-width: 0;
   background: #fff;
   box-shadow: 0 3px 12px #20382d05;
-
-  border-bottom: 1px solid #222222;
-
-  &:last-child {
-    border-bottom: none;
-  }
 `;
 
 export const panelHeading = css`
   padding: 12px 16px;
-  font-family: "Unbounded";
 
   @media (max-width: 720px) {
     padding: 16px 20px;
   }
 `;
 
-export const runButton = css`
+export const accentButton = css`
   flex-shrink: 0;
   padding: 7px 12px;
   border: 1px solid #d3dfd9;
@@ -31,8 +24,7 @@ export const runButton = css`
   background: var(--color-accent);
   color: #ffffff;
   font: inherit;
-  font-size: 14px;
-  font-family: "Unbounded";
+  font-size: 12px;
   cursor: pointer;
 
   &:hover:not(:disabled) {
@@ -52,12 +44,35 @@ export const ghostButton = css`
   background: #fff;
   color: #486557;
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
 
   &:hover:not(:disabled) {
     background: #eef3f0;
   }
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+`;
+
+export const programButton = css`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 7px 12px;
+  height: 100%;
+  border: 1px solid #d3dfd9;
+  border-radius: 4px;
+  margin: 8px;
+  color: #ffffff;
+  font: inherit;
+  font-size: 36px;
+  font-family: PM12;
+  font-weight: bold;
+  cursor: pointer;
+
   &:disabled {
     opacity: 0.45;
     cursor: default;

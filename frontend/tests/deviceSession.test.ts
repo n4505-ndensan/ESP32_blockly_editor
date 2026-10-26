@@ -8,7 +8,8 @@ it("selects real hardware only for an explicit dev target or device hosting", ()
   expect(deviceSource(false, "192.168.1.20", "")).toBe("sse");
 });
 it("orders device state per ID so an HTTP response cannot discard unrelated SSE changes", () => {
-  const versions = new DeviceRevisions(); versions.reset("a", 1, ["led", "sensor"]);
+  const versions = new DeviceRevisions();
+  versions.reset("a", 1, ["led", "sensor"]);
   expect(versions.accept("a", 5, "led")).toBe(true);
   expect(versions.accept("a", 4, "sensor")).toBe(true);
   expect(versions.accept("a", 4, "led")).toBe(false);

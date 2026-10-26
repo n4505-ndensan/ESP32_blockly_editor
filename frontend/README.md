@@ -64,7 +64,7 @@ JS・CSSの出力名はハッシュを使って短くする。
 圧縮方式の理由は[ADR 0003](../adr/0003-precompressed-web-assets.md)、
 LittleFSへの移行は[ADR 0004](../adr/0004-littlefs-web-storage.md)を参照。
 依存関係は`pnpm-lock.yaml`で固定し、生成物と`node_modules/`はGit管理しない。
-Blockly素材は開発・ビルド時にパッケージから`static/media/`へ自動コピーする。外部CDNは使わない。
+Blockly素材は開発・ビルド時にパッケージから`static/blockly_media/`へ自動コピーする。外部CDNは使わない。
 
 ## ESP32での確認
 

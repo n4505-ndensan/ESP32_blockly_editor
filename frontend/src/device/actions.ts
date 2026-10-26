@@ -1,14 +1,14 @@
+import type { DeviceState } from "~/device/types";
+import { manualBlocked, refreshProgram, stopProgram } from "~/program/actions";
 import {
-  applyStates,
   applyConfirmedStates,
+  applyStates,
   deviceSource,
   deviceStore,
   isPending,
   setError,
   setPending,
-} from "../store/deviceStore";
-import type { DeviceState } from "./types";
-import { manualBlocked, refreshProgram, stopProgram } from "../program/actions";
+} from "~/store/deviceStore";
 
 const COMMAND_URL = "/api/devices/command";
 
@@ -44,7 +44,11 @@ export async function setOutput(id: string, on: boolean) {
     }
 
     if (payload?.id && payload.state)
-      applyConfirmedStates([{ id: payload.id, state: payload.state }], payload.bootId, payload.revision);
+      applyConfirmedStates(
+        [{ id: payload.id, state: payload.state }],
+        payload.bootId,
+        payload.revision,
+      );
 
     setError(null);
   } catch {
@@ -55,7 +59,10 @@ export async function setOutput(id: string, on: boolean) {
 }
 
 export async function turnAllOff() {
-  if (deviceSource === "sse") { await stopProgram(); return; }
+  if (deviceSource === "sse") {
+    await stopProgram();
+    return;
+  }
   for (const device of deviceStore.devices) {
     if (device.control === "switch") await setOutput(device.id, false);
   }

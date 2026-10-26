@@ -1,20 +1,20 @@
 import { onCleanup, onMount } from "solid-js";
+import { dummyCatalog, dummySensorValues } from "~/device/dummyCatalog";
+import type { Device, DeviceStateEvent } from "~/device/types";
+import { disconnectProgram, observeProgram } from "~/program/actions";
+import { isProgramState } from "~/program/client";
 import {
-  applyStates,
   applyConfirmedStates,
+  applyStates,
   catalogBootId,
   clearSensorValues,
   deviceSource,
+  DeviceStatus,
   deviceStore,
   replaceCatalog,
   setError,
   setStatus,
-  DeviceStatus,
-} from "../store/deviceStore";
-import { observeProgram, disconnectProgram } from "../program/actions";
-import { isProgramState } from "../program/client";
-import { dummyCatalog, dummySensorValues } from "./dummyCatalog";
-import type { Device, DeviceStateEvent } from "./types";
+} from "~/store/deviceStore";
 
 let initialized = false;
 /** One connection per module store; ownership follows the root component. */
@@ -127,7 +127,8 @@ export function initDeviceStore() {
     replaceCatalog(dummyCatalog());
     setStatus(DeviceStatus.LOCAL_DEV_DUMMY);
     let tick = 0;
-    const update = () => applyStates(dummySensorValues(tick++, deviceStore.devices));
+    const update = () =>
+      applyStates(dummySensorValues(tick++, deviceStore.devices));
     update();
     dummyTimer = setInterval(update, 1000);
   });

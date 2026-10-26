@@ -9,12 +9,10 @@ describe("sensor presentation", () => {
         value: 123,
         caption: null,
       });
-      expect(sensorPresentation("tof", { status, value: 0 }).value).toBe(
-        0,
+      expect(sensorPresentation("tof", { status, value: 0 }).value).toBe(0);
+      expect(sensorPresentation("thermo", { status, value: 24.5 }).value).toBe(
+        "24.50",
       );
-      expect(
-        sensorPresentation("thermo", { status, value: 24.5 }).value,
-      ).toBe("24.50");
     },
   );
 
@@ -41,26 +39,27 @@ describe("sensor presentation", () => {
       caption: "取得できません",
     });
     for (const status of ["ok", "held"] as const) {
-      expect(
-        sensorPresentation("tof", { status, value: null }).value,
-      ).toBe("--");
+      expect(sensorPresentation("tof", { status, value: null }).value).toBe(
+        "--",
+      );
       expect(sensorPresentation("thermo", { status }).value).toBe("--");
     }
   });
 
   it("reflects held, stale, hard invalidation and fresh recovery without caching", () => {
-    expect(
-      sensorPresentation("tof", { status: "held", value: 90 }),
-    ).toEqual({ value: 90, caption: null });
+    expect(sensorPresentation("tof", { status: "held", value: 90 })).toEqual({
+      value: 90,
+      caption: null,
+    });
     expect(
       sensorPresentation("tof", { status: "stale", value: null }).value,
     ).toBe("--");
     expect(
-      sensorPresentation("tof", { status: "unavailable", value: null })
-        .value,
+      sensorPresentation("tof", { status: "unavailable", value: null }).value,
     ).toBe("--");
-    expect(
-      sensorPresentation("tof", { status: "ok", value: 110 }),
-    ).toEqual({ value: 110, caption: null });
+    expect(sensorPresentation("tof", { status: "ok", value: 110 })).toEqual({
+      value: 110,
+      caption: null,
+    });
   });
 });

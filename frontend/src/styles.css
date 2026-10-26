@@ -1,6 +1,42 @@
-@import url("https://fonts.googleapis.com/css2?family=Unbounded:wght@200..900&display=swap");
+@font-face {
+  font-family: "PM10";
+  src: url("/fonts/PixelMplus10-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
-/* Element defaults only. Component classes are written with ecsstatic in the component files. */
+@font-face {
+  font-family: "PM10";
+  src: url("/fonts/PixelMplus10-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PM12";
+  src: url("/fonts/PixelMplus12-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PM12";
+  src: url("/fonts/PixelMplus12-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PS2P";
+  src: url("/fonts/PressStart2P-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 
 * {
   box-sizing: border-box;
@@ -10,18 +46,20 @@
   --color-accent: #2090ff;
 
   font-family:
+    PM12,
     system-ui,
     -apple-system,
     "Segoe UI",
     sans-serif;
   color: #15201c;
-  background: #e7e9e8;
+  background: #353535;
   font-synthesis: none;
   line-height: 1.6;
   min-height: 100dvh;
   height: 100dvh;
   margin: 0;
   padding: 0;
+  font-size: 12px;
 }
 
 body {
@@ -41,13 +79,15 @@ p {
   margin: 0;
 }
 
+h1,
+h2,
+h3 {
+  font-family: PS2P, PM12;
+}
+
 h1 {
-  font-size: clamp(22px, 3vw, 28px);
-  font-weight: 650;
-  font-family: "Unbounded";
+  font-size: 24px;
 }
 h2 {
   font-size: 16px;
-  font-weight: 650;
-  font-family: "Unbounded";
 }

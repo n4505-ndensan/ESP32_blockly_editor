@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Blockly from "blockly/core";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { configureDeviceBlocks } from "../src/blockly/deviceBlocks";
 import { dummyCatalog } from "../src/device/dummyCatalog";
 import { compileWorkspace } from "../src/program/compile";
@@ -36,7 +36,9 @@ describe("device dropdown restoration", () => {
 
     configureDeviceBlocks(devices, workspace);
     expect(field.getValue()).toBe(deviceId);
-    expect(field.getText()).toContain(devices.find((device) => device.id === deviceId)!.label);
+    expect(field.getText()).toContain(
+      devices.find((device) => device.id === deviceId)!.label,
+    );
     expect(field.getText()).not.toContain("未接続");
   });
 
@@ -57,11 +59,15 @@ describe("device dropdown restoration", () => {
     expect(field.getText()).toContain("未接続");
     expect(() => compileWorkspace(workspace, remaining)).toThrow("部品");
 
-    const renamed = devices.map((device) => device.id === "led_blue" ? { ...device, label: "Renamed LED" } : device);
+    const renamed = devices.map((device) =>
+      device.id === "led_blue" ? { ...device, label: "Renamed LED" } : device,
+    );
     configureDeviceBlocks(renamed, workspace);
     expect(field.getValue()).toBe("led_blue");
     expect(field.getText()).toBe("Renamed LED");
-    expect(compileWorkspace(workspace, renamed).body[0]).toMatchObject({ deviceId: "led_blue" });
+    expect(compileWorkspace(workspace, renamed).body[0]).toMatchObject({
+      deviceId: "led_blue",
+    });
 
     configureDeviceBlocks(remaining, workspace);
     expect(field.getValue()).toBe("led_blue");
