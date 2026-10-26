@@ -102,6 +102,18 @@ SPIFFSから移行する際も、上記の`upload`と`uploadfs`の両方を実�
 スイッチを押して実機が反応し、表示も切り替わるところまで見る。
 フロントエンドだけを変更した場合は、`uploadfs`だけで更新できる。
 
+## スタイル
+
+コンポーネントのクラスは[ecsstatic](https://github.com/mayank99/ecsstatic)の`css`タグで、各コンポーネントのファイル末尾に書く。
+変数名はcamelCaseにし、複数のコンポーネントで使うクラスは`src/components/styles.ts`に置く。
+ビルド時に`css`はクラス名の文字列へ置き換わり、CSSは通常のスタイルシートとして出力される。
+`src/styles.css`には要素の既定スタイルだけを書く。
+
+- テンプレートに`${}`で値を埋め込まない。埋め込むとecsstaticがファイルをNode.jsで評価するため、ブラウザ向けの依存を含むファイルでは失敗しうる。
+- 閉じる`` ` ``は行を改めて書く。ecsstatic 0.9.0は閉じる`` ` ``の直前の1文字を捨てるため、`` css`color: red` ``は`color: re`になる。
+- 要素がすでに持つ属性（`aria-checked`など）で表せる状態は、修飾クラスを足さずにその属性で書き分ける。
+- 同じ要素に付けた別のクラスを上書きするクラスは、上書きされる側より後に定義する。別ファイルのクラスを上書きする場合は、そのファイルをimportする側に置く。
+
 ## 配置
 
 ```text
@@ -111,6 +123,8 @@ frontend/
     components/SensorPanel.tsx       # 温度・距離と接続状態の表示
     components/DeviceControlPanel.tsx # LED・ブザーのON/OFF
     components/BlocklyEditor.tsx     # パネル内のBlocklyの生成・リサイズ・破棄
+    components/styles.ts             # 複数のコンポーネントで使うクラス
+    styles.css                       # 要素の既定スタイル
     store/deviceStore.ts             # 部品の状態と更新プリミティブ
     store/programStore.ts            # 実行状態
     device/connection.ts             # カタログ・SSE・ダミー接続
