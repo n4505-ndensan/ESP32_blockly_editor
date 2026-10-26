@@ -94,6 +94,11 @@ void registerSettingsApi(AsyncWebServer &server)
     server.on(AsyncURIMatcher::exact("/api/settings/devices"), HTTP_POST, handlePost);
 }
 
+bool settingsRestartPending()
+{
+    return restartPending;
+}
+
 void serviceSettingsRestart()
 {
     if (!restartPending || millis() - restartRequestedAt < RESTART_DELAY_MS)

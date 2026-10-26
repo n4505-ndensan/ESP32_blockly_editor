@@ -1,4 +1,5 @@
 #include "program_api.h"
+#include "settings_api.h"
 #include <runtime/runner.h>
 #include <runtime/json_input.h>
 #include <runtime/state_json.h>
@@ -124,6 +125,13 @@ namespace
     }
     void handleRun(AsyncWebServerRequest *request)
     {
+        // A saved part list restarts the board shortly; a program started now would be cut off.
+        if (settingsRestartPending())
+        {
+            releaseUpload(request);
+            fail(request, 409, "restarting", "部品リストを反映するため再起動中です。再接続してから実行してください。");
+            return;
+        }
         const size_t length = request->contentLength();
         if (length > program::MAX_BYTES)
         {
