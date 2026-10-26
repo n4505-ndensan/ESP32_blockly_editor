@@ -19,7 +19,7 @@ export default function SensorPanel() {
         <For each={sensors()}>
           {(device) => {
             const presentation = createMemo(() =>
-              sensorPresentation(device.id, device.state),
+              sensorPresentation(device.type, device.state),
             );
             return (
               <section
@@ -27,11 +27,8 @@ export default function SensorPanel() {
                 aria-labelledby={`${device.id}-label`}
               >
                 <h3 id={`${device.id}-label`}>
-                  <span class={`sensor-mark ${device.id}-mark`} />
+                  <span class={`sensor-mark sensor-mark-${device.type}`} />
                   {device.label}
-                  <Show when={device.description}>
-                    <span class="sensor-caption">{device.description}</span>
-                  </Show>
                 </h3>
                 <p class="sensor-value">
                   <span id={device.id}>{presentation().value}</span>
@@ -39,9 +36,6 @@ export default function SensorPanel() {
                 </p>
                 <Show when={presentation().caption}>
                   <p class="sensor-caption">{presentation().caption}</p>
-                </Show>
-                <Show when={device.description}>
-                  <p class="sensor-caption">{device.description}</p>
                 </Show>
               </section>
             );

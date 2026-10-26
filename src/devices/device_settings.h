@@ -41,6 +41,8 @@ struct PartList
 
 bool isI2cPart(PartType type);
 const char *partTypeName(PartType type);
+// 通信で使う種類の名前（`led` / `buzzer` / `thermo` / `tof`）。
+const char *partTypeKey(PartType type);
 
 // 設定が保存されていないときに使う、最初のキットの部品リスト。
 void defaultPartList(PartList &out);

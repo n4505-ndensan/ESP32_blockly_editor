@@ -5,15 +5,15 @@ describe("sensor presentation", () => {
   it.each(["ok", "held"] as const)(
     "shows numeric %s values, including zero",
     (status) => {
-      expect(sensorPresentation("distance", { status, value: 123 })).toEqual({
+      expect(sensorPresentation("tof", { status, value: 123 })).toEqual({
         value: 123,
-        caption: status === "held" ? "直近値を使用中" : null,
+        caption: null,
       });
-      expect(sensorPresentation("distance", { status, value: 0 }).value).toBe(
+      expect(sensorPresentation("tof", { status, value: 0 }).value).toBe(
         0,
       );
       expect(
-        sensorPresentation("temperature", { status, value: 24.5 }).value,
+        sensorPresentation("thermo", { status, value: 24.5 }).value,
       ).toBe("24.50");
     },
   );
@@ -24,11 +24,11 @@ describe("sensor presentation", () => {
   ] as const)(
     "hides even a retained numeric value when %s",
     (status, caption) => {
-      expect(sensorPresentation("distance", { status, value: 123 })).toEqual({
+      expect(sensorPresentation("tof", { status, value: 123 })).toEqual({
         value: "--",
         caption,
       });
-      expect(sensorPresentation("distance", { status, value: null })).toEqual({
+      expect(sensorPresentation("tof", { status, value: null })).toEqual({
         value: "--",
         caption,
       });
@@ -36,31 +36,31 @@ describe("sensor presentation", () => {
   );
 
   it("does not invent a value for missing or null readings", () => {
-    expect(sensorPresentation("distance", {})).toEqual({
+    expect(sensorPresentation("tof", {})).toEqual({
       value: "--",
       caption: "取得できません",
     });
     for (const status of ["ok", "held"] as const) {
       expect(
-        sensorPresentation("distance", { status, value: null }).value,
+        sensorPresentation("tof", { status, value: null }).value,
       ).toBe("--");
-      expect(sensorPresentation("temperature", { status }).value).toBe("--");
+      expect(sensorPresentation("thermo", { status }).value).toBe("--");
     }
   });
 
   it("reflects held, stale, hard invalidation and fresh recovery without caching", () => {
     expect(
-      sensorPresentation("distance", { status: "held", value: 90 }).caption,
-    ).toBe("直近値を使用中");
+      sensorPresentation("tof", { status: "held", value: 90 }),
+    ).toEqual({ value: 90, caption: null });
     expect(
-      sensorPresentation("distance", { status: "stale", value: null }).value,
+      sensorPresentation("tof", { status: "stale", value: null }).value,
     ).toBe("--");
     expect(
-      sensorPresentation("distance", { status: "unavailable", value: null })
+      sensorPresentation("tof", { status: "unavailable", value: null })
         .value,
     ).toBe("--");
     expect(
-      sensorPresentation("distance", { status: "ok", value: 110 }),
+      sensorPresentation("tof", { status: "ok", value: 110 }),
     ).toEqual({ value: 110, caption: null });
   });
 });

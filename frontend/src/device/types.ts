@@ -1,3 +1,5 @@
+import type { PartType } from "../settings/types";
+
 // ESP32の`GET /api/devices`・`devices`イベントとそろえた型。
 // 仕様はadr/0001-device-state-and-control.md、adr/0008-held-distance-value.mdを参照。
 
@@ -15,7 +17,8 @@ export type DeviceState = {
 export type Device = {
   id: string;
   label: string;
-  description: string;
+  /** 部品リストの種類。表示の色や桁数を種類で決める。 */
+  type: PartType;
   unit: string;
   kind: DeviceKind;
   control: DeviceControl;

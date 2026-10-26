@@ -18,7 +18,7 @@
 
 HTTP APIとSSEのセンサ状態は`{value: number | null, status: ok | held | unavailable | stale}`とする。
 `ok`・`held`では数値、`unavailable`・`stale`では`null`を返す。
-画面は`held`の数値と単位を表示し、「直近値を使用中」を添えて新規正常値と区別する。
+画面は`held`の数値と単位を`ok`と同じく表示する。
 無効な値は従来どおり`--`と理由を表示する。ブラウザ独自の保持や期限延長は行わない。
 
 実行器はセンサ式で`ok`・`held`を同じく数値として評価する。待機・一時中断・式のスキップは導入しない。

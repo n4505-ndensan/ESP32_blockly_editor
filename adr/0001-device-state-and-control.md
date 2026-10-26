@@ -94,12 +94,12 @@ LEDとブザーはHIGHでONになる配線として扱い、極性が違う部�
 {
   "devices": [
     {
-      "id": "led_red", "label": "赤色LED", "description": "", "unit": "",
+      "id": "led_red", "label": "赤色LED", "type": "led", "unit": "",
       "kind": "output", "control": "switch",
       "state": { "on": false }
     },
     {
-      "id": "temperature", "label": "温度", "description": "検出範囲の最高温度", "unit": "℃",
+      "id": "temperature", "label": "温度", "type": "thermo", "unit": "℃",
       "kind": "sensor", "control": "none",
       "state": { "value": 24.5 }
     }
@@ -107,11 +107,10 @@ LEDとブザーはHIGHでONになる配線として扱い、極性が違う部�
 }
 ```
 
+- `type`: 部品リストの種類（`led` / `buzzer` / `thermo` / `tof`、ADR 0009）。画面は表示の色や桁数をこれで決める
 - `kind`: `output`（操作できる部品）/ `sensor`（読むだけの部品）
 - `control`: `switch`（ON/OFF）/ `none`。将来`level`（PWM）や`tone`（音階）を足す余地を残す
 - `state`: `output`は`on`のみ、`sensor`は`value`のみを持つ
-- `description`: 画面に出す短い補足。不要なら空文字。部品ごとの説明を画面側に持つと
-  部品を足すたびに2か所を直すことになるため、`label`・`unit`と同じくカタログに含める
 
 ### `POST /api/devices/command` — 操作
 

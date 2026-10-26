@@ -12,7 +12,6 @@ namespace
     {
         DeviceKind kind;
         DeviceControl control;
-        const char *description;
         const char *unit;
         float epsilon;
         SensorSample (*read)(uint8_t bus);
@@ -23,11 +22,11 @@ namespace
         switch (type)
         {
         case PartType::Thermo:
-            return {DeviceKind::Sensor, DeviceControl::None, "検出範囲の最高温度", "℃", 0.05f, readTemperature};
+            return {DeviceKind::Sensor, DeviceControl::None, "℃", 0.05f, readTemperature};
         case PartType::Tof:
-            return {DeviceKind::Sensor, DeviceControl::None, "対象物までの距離", "mm", 1.0f, readDistance};
+            return {DeviceKind::Sensor, DeviceControl::None, "mm", 1.0f, readDistance};
         default:
-            return {DeviceKind::Output, DeviceControl::Switch, "", "", 0.0f, nullptr};
+            return {DeviceKind::Output, DeviceControl::Switch, "", 0.0f, nullptr};
         }
     }
 
@@ -74,7 +73,7 @@ void initDevices()
             buses[bus].thermal |= part.type == PartType::Thermo;
             buses[bus].distance |= part.type == PartType::Tof;
         }
-        sDevices[i] = DeviceDescriptor{part.id, part.label, traits.description, traits.unit, traits.kind, traits.control,
+        sDevices[i] = DeviceDescriptor{part.id, part.label, part.type, traits.unit, traits.kind, traits.control,
                                        traits.kind == DeviceKind::Output ? part.pins[0] : uint8_t(0), false, traits.epsilon, bus, traits.read};
     }
 

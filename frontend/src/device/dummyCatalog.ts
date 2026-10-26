@@ -17,22 +17,22 @@ export const dummyParts: Part[] = [
 
 /** 部品リストの1行をカタログ1件にする。説明・単位は種類で決まる。 */
 export const partDevice = ({ id, type, label }: Part): Device => {
-  if (type === "thermo") return { id, label, description: "検出範囲の最高温度", unit: "℃", kind: "sensor", control: "none", state: {} };
-  if (type === "tof") return { id, label, description: "対象物までの距離", unit: "mm", kind: "sensor", control: "none", state: {} };
-  return { id, label, description: "", unit: "", kind: "output", control: "switch", state: { on: false } };
+  if (type === "thermo") return { id, label, type, unit: "℃", kind: "sensor", control: "none", state: {} };
+  if (type === "tof") return { id, label, type, unit: "mm", kind: "sensor", control: "none", state: {} };
+  return { id, label, type, unit: "", kind: "output", control: "switch", state: { on: false } };
 };
 
 export const dummyCatalog = (): Device[] => dummyParts.map(partDevice);
 
 // ダミーのセンサ値。実機と同じ`devices`イベントの形に合わせて返す。
-// 設定画面で足したセンサにも配れるよう、IDではなく単位で値の作り方を決める。
+// 設定画面で足したセンサにも配れるよう、IDではなく種類で値の作り方を決める。
 export const dummySensorValues = (tick: number, devices: readonly Device[]) =>
   devices
     .filter((device) => device.kind === "sensor")
     .map((device) => ({
       id: device.id,
       state: {
-        value: device.unit === "℃" ? Number((24.5 + Math.sin(tick / 5)).toFixed(2)) : Math.round(300 + 100 * Math.sin(tick / 3)),
+        value: device.type === "thermo" ? Number((24.5 + Math.sin(tick / 5)).toFixed(2)) : Math.round(300 + 100 * Math.sin(tick / 3)),
         status: "ok" as const,
       },
     }));

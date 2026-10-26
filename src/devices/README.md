@@ -4,7 +4,7 @@
 1行は`{id, type, label, pins}`で、NVSに保存する（`device_settings_store.cpp`）。
 保存が無ければ最初のキット（LED5色・ブザー・温度・距離）を使う。キットの部品も特別扱いしない。
 
-`devices.cpp`は起動時に部品リストを読み、種類ごとの性質（補足・単位・種別・操作・変化の判定幅・読み取り関数）を
+`devices.cpp`は起動時に部品リストを読み、種類ごとの性質（単位・種別・操作・変化の判定幅・読み取り関数）を
 足して部品の表を組み立て、`GET /api/devices`で配る。操作UIもBlocklyのツールボックスも、この配信結果から組み立てる。
 部品の種類を増やすときは`device_settings.h`の`PartType`と`devices.cpp`の`traitsOf()`に足す。
 

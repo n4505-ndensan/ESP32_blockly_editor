@@ -25,7 +25,7 @@ struct DeviceDescriptor
 {
     const char *id;
     const char *label;
-    const char *description; // 画面に出す短い補足
+    PartType type;
     const char *unit;        // センサのみ。出力部品は空文字。
     DeviceKind kind;
     DeviceControl control;

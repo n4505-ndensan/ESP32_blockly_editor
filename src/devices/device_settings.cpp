@@ -96,6 +96,11 @@ const char *partTypeName(PartType type)
     return typeEntry(type).name;
 }
 
+const char *partTypeKey(PartType type)
+{
+    return typeEntry(type).key;
+}
+
 void defaultPartList(PartList &out)
 {
     out.count = 0;
@@ -242,7 +247,7 @@ void writePartList(JsonVariant root, const PartList &list)
         JsonObject entry = parts.add<JsonObject>();
         // 配列の文字列は静的とみなされうるので、明示的にコピーさせる。
         entry["id"] = JsonString(part.id, false);
-        entry["type"] = typeEntry(part.type).key;
+        entry["type"] = partTypeKey(part.type);
         entry["label"] = JsonString(part.label, false);
         JsonArray pins = entry["pins"].to<JsonArray>();
         for (size_t k = 0; k < (isI2cPart(part.type) ? 2u : 1u); ++k)

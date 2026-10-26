@@ -42,7 +42,7 @@ namespace
 
         entry["id"] = device.id;
         entry["label"] = device.label;
-        entry["description"] = device.description;
+        entry["type"] = partTypeKey(device.type);
         entry["unit"] = device.unit;
         entry["kind"] = kindName(device.kind);
         entry["control"] = controlName(device.control);
