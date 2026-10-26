@@ -6,8 +6,6 @@
 
 `BlocklyEditor`は開始ブロックを初期配置し、編集内容の世代を管理する。
 センサ値更新ではワークスペースを再生成せず、カタログ変更時だけtoolboxを更新する。
-Device fields retain saved IDs while the catalog is loading or a device is absent.
-Catalog updates refresh their options and labels without changing the selected IDs.
 実行用ASTへの変換は`program/compile.ts`。Blocklyの保存JSONとは分離する。
 
 編集内容は`workspaceStorage.ts`経由でlocalStorageへ自動保存する。
