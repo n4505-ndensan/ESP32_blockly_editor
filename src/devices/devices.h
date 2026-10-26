@@ -32,7 +32,8 @@ struct DeviceDescriptor
     uint8_t pin;      // 出力部品のみ
     bool activeLow;   // LOWでONになる配線ならtrue
     float epsilon;    // センサのみ。この幅を超えて動いたら変化とみなす
-    SensorSample (*read)();
+    uint8_t bus;      // センサのみ。つながっているI2Cの組の番号
+    SensorSample (*read)(uint8_t bus);
 };
 
 struct DeviceState

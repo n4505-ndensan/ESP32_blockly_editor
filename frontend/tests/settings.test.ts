@@ -51,7 +51,11 @@ describe("device settings rules", () => {
 
   it("allows one sensor of each type per bus and limits the number of buses", () => {
     expect(validateSettings(settings([...kit, thermo("temperature_2", 21, 22)])).join()).toContain("温度センサは1個まで");
-    expect(validateSettings(settings([...kit, thermo("temperature_2", 25, 26)])).join()).toContain(`${MAX_I2C_BUSES}組まで`);
+    // 2組目のバスには同じ種類のセンサをもう1個つなげる。
+    const twin = [...kit, thermo("temperature_2", 25, 26), { ...thermo("distance_2", 25, 26), type: "tof" as const }];
+    expect(validateSettings(settings(twin))).toEqual([]);
+    expect(MAX_I2C_BUSES).toBe(2);
+    expect(validateSettings(settings([...twin, thermo("temperature_3", 13, 14)])).join()).toContain(`${MAX_I2C_BUSES}組まで`);
     // センサごと別のピンへ移すのは構わない。
     expect(validateSettings(settings(kit.map((part) => (part.type === "led" ? part : { ...part, pins: [25, 26] }))))).toEqual([]);
     expect(validateSettings(settings([thermo("temperature_2", 25, 25)])).join()).toContain("別のピン");

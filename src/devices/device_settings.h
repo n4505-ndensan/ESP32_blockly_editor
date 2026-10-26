@@ -18,9 +18,8 @@ enum class PartType : uint8_t
 constexpr size_t MAX_PARTS = 32; // 変化の印を1つのuint32_tで持つため
 constexpr size_t MAX_PART_ID = 23;
 constexpr size_t MAX_PART_LABEL = 48; // UTF-8のバイト数
-// SDA・SCLの組が同じI2C部品は、同じバスに並べてつなぐ。
-// センサの読み取りがまだ1系統（Wire）だけに対応しているため1。
-constexpr size_t MAX_I2C_BUSES = 1;
+// SDA・SCLの組が同じI2C部品は、同じバスに並べてつなぐ。組ごとにESP32のI2C（Wire・Wire1）を1つ使う。
+constexpr size_t MAX_I2C_BUSES = 2;
 
 // 部品に使ってよいピン。0/1/3（書き込み・シリアル）、6〜11（フラッシュ）、
 // 12（起動電圧の切り替え）、34〜39（入力専用）は外す。

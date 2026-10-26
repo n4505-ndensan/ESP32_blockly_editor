@@ -473,7 +473,9 @@ static void test_part_list_rules()
     assertProblem(R"({"parts":[)" KIT_PARTS R"(,{"id":"led_2","type":"led","label":"LED 2","pins":[12]}]})", "使えないピン");
     assertProblem(R"({"parts":[)" KIT_PARTS R"(,{"id":"temperature_2","type":"thermo","label":"温度 2","pins":[21,22]}]})", "温度センサは1個まで");
     assertProblem(R"({"parts":[)" KIT_PARTS R"(,{"id":"temperature_2","type":"thermo","label":"温度 2","pins":[22,21]}]})", "重なって");
-    assertProblem(R"({"parts":[)" KIT_PARTS R"(,{"id":"temperature_2","type":"thermo","label":"温度 2","pins":[25,26]}]})", "1組まで");
+    // 2組目のI2Cには、同じ種類のセンサをもう1個つなげる。3組目は使えない。
+    TEST_ASSERT_NULL(partListProblem(R"({"parts":[)" KIT_PARTS R"(,{"id":"temperature_2","type":"thermo","label":"温度 2","pins":[25,26]},{"id":"distance_2","type":"tof","label":"距離 2","pins":[25,26]}]})"));
+    assertProblem(R"({"parts":[)" KIT_PARTS R"(,{"id":"temperature_2","type":"thermo","label":"温度 2","pins":[25,26]},{"id":"distance_2","type":"tof","label":"距離 2","pins":[25,26]},{"id":"temperature_3","type":"thermo","label":"温度 3","pins":[27,32]}]})", "2組まで");
     assertProblem(R"({"parts":[{"id":"temperature","type":"thermo","label":"温度","pins":[25,25]}]})", "別のピン");
     assertProblem(R"({"parts":[{"id":"temperature","type":"thermo","label":"温度","pins":[25]}]})", "ピンを選んで");
     assertProblem(R"({"parts":[{"id":"led_2","type":"led","label":"A","pins":[13]},{"id":"led_3","type":"led","label":"A","pins":[14]}]})", "名前が重なって");

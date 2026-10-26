@@ -21,6 +21,8 @@ Arduinoに依存しないので、ホストのUnityテスト（`scripts/test_run
 センサの読み取り本体は`sensors.cpp`に置く。I2Cの初期化と各センサ固有の手順はここに閉じ込め、
 `devices.cpp`へは値・取得時刻・有効性を持つ`SensorSample`を返す。表の`read`にそのまま渡せる形にしておくことで、
 センサを増やしてもカタログ側の書き方は変わらない。
+I2Cは部品リストのSDA・SCLの組ごとに1系統（`Wire`・`Wire1`）を使い、センサは組ごとに別の実体を持つ。
+`devices.cpp`は各センサの組の番号を`DeviceDescriptor::bus`に持ち、`read`へ渡す。
 
 設計の理由は[adr/0001](../../adr/0001-device-state-and-control.md)を参照。
 部品リストを設定値にした理由は[adr/0009](../../adr/0009-device-list-settings.md)にある。

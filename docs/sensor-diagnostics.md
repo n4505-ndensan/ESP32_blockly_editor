@@ -39,6 +39,8 @@
 - `SENSOR_RUNTIME`：プログラムが無効なセンサを参照した時点のsensor、runId、blockId、状態、取得時刻と保存値。
   ランタイムのロック内では必要情報だけを退避し、ログ生成・出力はロック外で行います。
 
+`SENSOR_CONFIG`と`SENSOR`の`bus`は、距離センサがつながっているI2Cの組の番号（0または1）です。
+
 `SENSOR.reason`：
 
 | 値 | 意味 |

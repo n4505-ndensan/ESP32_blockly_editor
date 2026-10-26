@@ -15,7 +15,7 @@ namespace
         const char *description;
         const char *unit;
         float epsilon;
-        SensorSample (*read)();
+        SensorSample (*read)(uint8_t bus);
     };
 
     TypeTraits traitsOf(PartType type)
@@ -56,22 +56,26 @@ void initDevices()
     loadPartList(sParts);
     sDeviceCount = sParts.count;
 
-    // I2Cの組はまだ1つだけ（MAX_I2C_BUSES）なので、センサはすべて同じSDA・SCLにつながっている。
-    int sda = -1, scl = -1;
-    bool thermal = false, distance = false;
+    // SDA・SCLの組が同じセンサは同じI2Cにつなぐ。組の番号は部品リストに初めて出てきた順に振る。
+    // 部品リストは検証済みなので、組はMAX_I2C_BUSESまでで、各組に同じ種類のセンサは1個まで。
+    SensorBus buses[MAX_I2C_BUSES] = {};
+    size_t busCount = 0;
     for (size_t i = 0; i < sDeviceCount; i++)
     {
         const PartConfig &part = sParts.parts[i];
         const TypeTraits traits = traitsOf(part.type);
-        sDevices[i] = DeviceDescriptor{part.id, part.label, traits.description, traits.unit, traits.kind, traits.control,
-                                       traits.kind == DeviceKind::Output ? part.pins[0] : uint8_t(0), false, traits.epsilon, traits.read};
+        uint8_t bus = 0;
         if (isI2cPart(part.type))
         {
-            sda = part.pins[0];
-            scl = part.pins[1];
-            thermal |= part.type == PartType::Thermo;
-            distance |= part.type == PartType::Tof;
+            while (bus < busCount && !(buses[bus].sda == part.pins[0] && buses[bus].scl == part.pins[1]))
+                ++bus;
+            if (bus == busCount)
+                buses[busCount++] = SensorBus{part.pins[0], part.pins[1], false, false};
+            buses[bus].thermal |= part.type == PartType::Thermo;
+            buses[bus].distance |= part.type == PartType::Tof;
         }
+        sDevices[i] = DeviceDescriptor{part.id, part.label, traits.description, traits.unit, traits.kind, traits.control,
+                                       traits.kind == DeviceKind::Output ? part.pins[0] : uint8_t(0), false, traits.epsilon, bus, traits.read};
     }
 
     for (size_t i = 0; i < sDeviceCount; i++)
@@ -91,7 +95,7 @@ void initDevices()
 
     turnDeviceOutputsOff();
 
-    initSensors(sda, scl, thermal, distance);
+    initSensors(buses, busCount);
     delay(400);
 }
 
@@ -166,7 +170,7 @@ void pollDeviceSensors()
         if (sDevices[i].kind != DeviceKind::Sensor || sDevices[i].read == nullptr)
             continue;
 
-        const SensorSample sample = freshSample(sDevices[i].read(), millis());
+        const SensorSample sample = freshSample(sDevices[i].read(sDevices[i].bus), millis());
         portENTER_CRITICAL(&sMutex);
         if (sensorChanged(sPublished[i], sample, sDevices[i].epsilon)) sChanged |= 1u << i;
         // The runtime always sees the latest sample, even below the SSE epsilon.

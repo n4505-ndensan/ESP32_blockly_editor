@@ -6,8 +6,8 @@ import type { DeviceSettings, Part, PartType } from "./types";
 /** 変化の印（32ビット）に収まる数。 */
 export const MAX_PARTS = 32;
 export const MAX_LABEL_BYTES = 48;
-/** SDA・SCLの組が同じ部品は同じバスに並べてつなぐ。ESP32のセンサ読み取りがまだ1系統だけに対応しているため1。 */
-export const MAX_I2C_BUSES = 1;
+/** SDA・SCLの組が同じ部品は同じバスに並べてつなぐ。ESP32のI2Cは2系統。 */
+export const MAX_I2C_BUSES = 2;
 
 const bytes = (value: string) => new TextEncoder().encode(value).length;
 const busKey = (pins: readonly number[]) => `${pins[0]}/${pins[1]}`;
