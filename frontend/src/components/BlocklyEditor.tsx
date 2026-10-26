@@ -1,3 +1,4 @@
+import { css } from "@acab/ecsstatic";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import * as Blockly from "blockly/core";
 import { blocks } from "blockly/blocks";
@@ -134,8 +135,23 @@ export default function BlocklyEditor(props: { onReady: (editor: EditorHandle) =
   return (
     <div
       ref={container}
-      class="blockly-editor"
+      class={blocklyEditor}
       aria-label="ブロック編集エリア"
     />
   );
 }
+
+const blocklyEditor = css`
+  position: relative;
+  width: 100%;
+  height: 100%;
+  isolation: isolate;
+
+  & .blocklySvg {
+    border: 0;
+  }
+
+  @media (max-width: 720px) {
+    height: 480px;
+  }
+`;

@@ -1,8 +1,10 @@
+import { css } from "@acab/ecsstatic";
 import { createEffect, createMemo, createSignal, For, Index, Match, Show, Switch } from "solid-js";
 import { loadSettings, saveSettings } from "../settings/client";
 import { defaultLabel, defaultPins, MAX_PARTS, nextPartId, pinOwners, validateSettings } from "../settings/rules";
 import { PART_TYPES } from "../settings/types";
 import type { DeviceSettings, Part, PartType } from "../settings/types";
+import { ghostButton, panelHeading, runButton } from "./styles";
 
 const typeChoices = Object.entries(PART_TYPES) as [PartType, (typeof PART_TYPES)[PartType]][];
 
@@ -136,18 +138,18 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
   };
 
   return (
-    <dialog ref={dialog} class="settings-dialog" aria-labelledby="settings-title" onClose={() => props.onClose()}>
-      <h2 id="settings-title" class="panel-heading settings-title">設定</h2>
+    <dialog ref={dialog} class={settingsDialog} aria-labelledby="settings-title" onClose={() => props.onClose()}>
+      <h2 id="settings-title" class={`${panelHeading} ${settingsTitle}`}>設定</h2>
 
-      <section class="settings-section" aria-labelledby="settings-parts-title">
+      <section class={settingsSection} aria-labelledby="settings-parts-title">
         <h3 id="settings-parts-title">部品リスト</h3>
-        <Switch fallback={<p class="settings-message">{error() ?? "読み込み中…"}</p>}>
+        <Switch fallback={<p class={settingsMessage}>{error() ?? "読み込み中…"}</p>}>
           <Match when={restarting()}>
-            <p class="settings-message" role="status">保存しました。ESP32を再起動して反映します。再接続まで数秒かかります。</p>
+            <p class={settingsMessage} role="status">保存しました。ESP32を再起動して反映します。再接続まで数秒かかります。</p>
           </Match>
           <Match when={candidatePins()}>
             {(pins) => (
-              <table class="settings-table">
+              <table class={settingsTable}>
                 <thead>
                   <tr>
                     <th scope="col">種類</th>
@@ -174,7 +176,7 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
                           onChange={(next) => update(index, { pins: next as number[] })}
                         />
                         <td>
-                          <button type="button" class="ghost-button" onClick={() => setParts(parts().filter((_, i) => i !== index))}>削除</button>
+                          <button type="button" class={ghostButton} onClick={() => setParts(parts().filter((_, i) => i !== index))}>削除</button>
                         </td>
                       </tr>
                     )}
@@ -197,7 +199,7 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
                     </td>
                     <PinCells type={newType()} pins={newPins()} choices={pins()} note={noteFor(-1)} label="追加する部品" onChange={setNewPins} />
                     <td>
-                      <button type="button" class="ghost-button settings-add-button" disabled={!canAdd()} onClick={add}>追加</button>
+                      <button type="button" class={`${ghostButton} ${settingsAddButton}`} disabled={!canAdd()} onClick={add}>追加</button>
                     </td>
                   </tr>
                 </tfoot>
@@ -208,17 +210,132 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
       </section>
 
       <Show when={!restarting() && draft() && (error() ? [error()!] : problems()).length > 0}>
-        <ul class="settings-problems" role="alert">
+        <ul class={settingsProblems} role="alert">
           <For each={error() ? [error()!] : problems()}>{(message) => <li>{message}</li>}</For>
         </ul>
       </Show>
 
-      <div class="settings-actions">
-        <Show when={!restarting()} fallback={<button type="button" class="ghost-button" onClick={() => props.onClose()}>閉じる</button>}>
-          <button type="button" class="ghost-button" onClick={() => props.onClose()}>キャンセル</button>
-          <button type="button" class="run-button" disabled={!draft() || problems().length > 0 || saving()} onClick={() => void save()}>保存</button>
+      <div class={settingsActions}>
+        <Show when={!restarting()} fallback={<button type="button" class={ghostButton} onClick={() => props.onClose()}>閉じる</button>}>
+          <button type="button" class={ghostButton} onClick={() => props.onClose()}>キャンセル</button>
+          <button type="button" class={runButton} disabled={!draft() || problems().length > 0 || saving()} onClick={() => void save()}>保存</button>
         </Show>
       </div>
     </dialog>
   );
 }
+
+const settingsDialog = css`
+  width: min(820px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid #222222;
+  background: #fff;
+  color: inherit;
+
+  &::backdrop {
+    background: #15201c40;
+  }
+`;
+
+const settingsTitle = css`
+  border-bottom: 1px solid #222222;
+`;
+
+const settingsSection = css`
+  & h3 {
+    padding: 12px 24px 8px;
+    font-size: 13px;
+    font-weight: 500;
+  }
+`;
+
+const settingsMessage = css`
+  padding: 12px 24px;
+  border-top: 1px solid #edf0ee;
+  color: #63786b;
+  font-size: 12px;
+`;
+
+const settingsTable = css`
+  width: calc(100% - 48px);
+  margin: 0 24px;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  & th {
+    padding: 6px 8px;
+    color: #6d7d73;
+    font-size: 11px;
+    font-weight: 500;
+    text-align: left;
+  }
+  & td {
+    padding: 6px 8px;
+    border-top: 1px solid #edf0ee;
+    white-space: nowrap;
+  }
+  & th:first-child,
+  & td:first-child {
+    padding-left: 0;
+  }
+  & th:last-child,
+  & td:last-child {
+    padding-right: 0;
+    text-align: right;
+  }
+  & tfoot::before {
+    content: "";
+    display: table-row;
+    height: 12px;
+  }
+  & tfoot td {
+    border-top-color: #d3dfd9;
+  }
+
+  & input,
+  & select {
+    width: 100%;
+    min-width: 0;
+    padding: 4px 8px;
+    border: 1px solid #d3dfd9;
+    border-radius: 8px;
+    background: #fff;
+    color: inherit;
+    font: inherit;
+    font-size: 12px;
+  }
+  & input:focus-visible,
+  & select:focus-visible {
+    outline: 2px solid #438568;
+    outline-offset: 1px;
+  }
+`;
+
+/** Overrides the ghostButton colours; ./styles is imported first, so its rules come earlier. */
+const settingsAddButton = css`
+  background: var(--color-accent);
+  color: #fff;
+
+  &:hover:not(:disabled) {
+    background: #1b7ad8;
+  }
+`;
+
+const settingsProblems = css`
+  margin: 12px 0 0;
+  padding: 10px 24px 10px 40px;
+  border-top: 1px solid #f0ded9;
+  background: #fbf1ef;
+  color: #9d4b3f;
+  font-size: 11px;
+`;
+
+const settingsActions = css`
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 24px;
+  border-top: 1px solid #edf0ee;
+`;
