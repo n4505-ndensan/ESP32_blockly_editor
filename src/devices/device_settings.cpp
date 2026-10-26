@@ -110,8 +110,8 @@ void defaultPartList(PartList &out)
     setPart(out.parts[out.count++], "led_yellow", "黄色LED", PartType::Led, 16);
     setPart(out.parts[out.count++], "led_blue", "青色LED", PartType::Led, 4);
     setPart(out.parts[out.count++], "buzzer", "ブザー", PartType::Buzzer, 23);
-    setPart(out.parts[out.count++], "temperature", "温度", PartType::Thermo, 21, 22);
-    setPart(out.parts[out.count++], "distance", "距離", PartType::Tof, 21, 22);
+    setPart(out.parts[out.count++], "temperature", "温度センサ", PartType::Thermo, 21, 22);
+    setPart(out.parts[out.count++], "distance", "距離センサ", PartType::Tof, 21, 22);
 }
 
 bool readPartList(JsonVariantConst json, PartList &out, char *message, size_t size)

@@ -33,13 +33,13 @@ export default function App() {
 const appShell = css`
   display: flex;
   flex-direction: column;
-  max-width: 1400px;
+  max-width: 1200px;
   margin: 0 auto;
   padding: 0;
   min-height: 100dvh;
   height: 100dvh;
   box-sizing: border-box;
-  padding-top: 8px;
+  padding-top: 4px;
   padding-bottom: 24px;
 
   @media (max-width: 720px) {
@@ -54,6 +54,7 @@ const layout = css`
   height: 100%;
   border-radius: 8px;
   border: 1px solid #111;
+  box-shadow: 0 2px 10px rgba(125, 125, 125, 0.5);
 
   overflow: hidden;
 `;
@@ -63,7 +64,7 @@ const workspaceLayout = css`
   flex: 1;
   min-height: 0;
   height: 100%;
-  grid-template-columns: minmax(0, 1fr) 420px;
+  grid-template-columns: minmax(0, 1fr) 400px;
 
   @media (max-width: 900px) {
     grid-template-columns: 220px minmax(0, 1fr);

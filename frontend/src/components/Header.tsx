@@ -11,7 +11,7 @@ const appHeader = css`
   justify-content: space-between;
   background: transparent;
   gap: 16px;
-  padding: 12px 12px;
+  padding: 12px 4px;
   color: white;
   border-top: none;
 
@@ -23,7 +23,7 @@ const appHeader = css`
 const headerText = css`
   user-select: none;
   opacity: 0.5;
-  filter: drop-shadow(0 0 5px rgba(200, 200, 200, 10));
+  filter: drop-shadow(0 0 10px rgba(200, 200, 200, 0.4));
 
   &:hover {
     opacity: 1;

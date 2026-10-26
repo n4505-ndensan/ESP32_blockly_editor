@@ -9,10 +9,10 @@ export const panel = css`
 `;
 
 export const panelHeading = css`
-  padding: 12px 16px;
+  padding: 12px 12px;
 
   @media (max-width: 720px) {
-    padding: 16px 20px;
+    padding: 16px 16px;
   }
 `;
 

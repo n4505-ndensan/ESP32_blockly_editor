@@ -34,7 +34,10 @@ const TemplatesTab: Component = () => {
             <p>
               {i() + 1}. {template.caption}
             </p>
-            <BlockPreview state={template.state} />
+            {/* Show the stack as a runnable program; only the stack itself is added. */}
+            <BlockPreview
+              state={{ type: "program_start", next: { block: template.state } }}
+            />
             <button
               type="button"
               class={`${accentButton} ${addButton}`}

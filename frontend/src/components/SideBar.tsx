@@ -60,17 +60,21 @@ const sidebarTabContent = css`
   gap: 12px;
 `;
 
-enum SidebarTab {
+export enum SidebarTab {
   PARTS_INFO = "部品情報",
   TUTORIAL = "実行方法",
   TEMPLATES = "テンプレート",
 }
 
-const SideBar: Component = () => {
-  const [currentTab, setCurrentTab] = createSignal<SidebarTab>(
-    SidebarTab.PARTS_INFO,
-  );
+const [currentTab, setCurrentTab] = createSignal<SidebarTab>(
+  SidebarTab.PARTS_INFO,
+);
 
+export function setCurrentSidebarTab(tab: SidebarTab) {
+  setCurrentTab(tab);
+}
+
+const SideBar: Component = () => {
   return (
     <div class={sideColumn}>
       <div class={sidebarTabContainer}>

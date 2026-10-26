@@ -15,7 +15,7 @@ const deviceHeading = css`
 
 const deviceList = css`
   margin: 0;
-  padding: 0 24px;
+  padding: 0 16px;
   list-style: none;
 
   @media (max-width: 900px) {
@@ -67,7 +67,7 @@ const deviceSwitch = css`
     opacity: 0.55;
   }
   &[aria-checked="true"] {
-    color: #2f6a51;
+    color: var(--color-active);
   }
   &:focus-visible {
     outline: none;
@@ -75,7 +75,7 @@ const deviceSwitch = css`
 `;
 
 const deviceSwitchText = css`
-  width: 2.4em;
+  width: 20px;
   text-align: left;
 `;
 
@@ -89,10 +89,10 @@ const deviceSwitchTrack = css`
   transition: background 120ms ease;
 
   [aria-checked="true"] > & {
-    background: #438568;
+    background: var(--color-active);
   }
   :focus-visible > & {
-    outline: 2px solid #438568;
+    outline: 2px solid var(--color-active);
     outline-offset: 2px;
   }
 `;
@@ -173,10 +173,10 @@ export default function DeviceControlPanel() {
                   // 表示中の状態から「したい状態」を決めて送る。反転はESP32側に任せない。
                   onClick={() => void setOutput(device.id, !on())}
                 >
+                  <span class={deviceSwitchText}>{on() ? "ON" : "OFF"}</span>
                   <span class={deviceSwitchTrack}>
                     <span class={deviceSwitchThumb} />
                   </span>
-                  <span class={deviceSwitchText}>{on() ? "ON" : "OFF"}</span>
                 </button>
               </li>
             );

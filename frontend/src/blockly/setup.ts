@@ -16,8 +16,25 @@ export const theme = Blockly.Theme.defineTheme("workspace", {
     toolboxForegroundColour: "#354b46",
     flyoutBackgroundColour: "#e7eeec",
     flyoutForegroundColour: "#354b46",
-    flyoutOpacity: 1,
+    flyoutOpacity: 0.75,
     scrollbarColour: "#a5b9b2",
   },
   fontStyle: { family: "system-ui, sans-serif", size: 12 },
 });
+
+const FLYOUT_SCALE = 0.9;
+// Extra space above the first block, in screen pixels.
+const FLYOUT_TOP_PADDING = 8;
+
+// Keeps the palette at a fixed size; the default follows the workspace zoom.
+export class FixedScaleFlyout extends Blockly.VerticalFlyout {
+  override getFlyoutScale() {
+    return FLYOUT_SCALE;
+  }
+
+  protected override layout_(contents: Blockly.FlyoutItem[]) {
+    super.layout_(contents);
+    const dy = FLYOUT_TOP_PADDING / FLYOUT_SCALE;
+    for (const item of contents) item.getElement().moveBy(0, dy);
+  }
+}

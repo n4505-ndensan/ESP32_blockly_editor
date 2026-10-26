@@ -2,7 +2,7 @@ import { css } from "@acab/ecsstatic";
 import * as Blockly from "blockly/core";
 import { createEffect, onCleanup, onMount } from "solid-js";
 import { configureDeviceBlocks } from "~/blockly/deviceBlocks";
-import { theme } from "~/blockly/setup";
+import { FixedScaleFlyout, theme } from "~/blockly/setup";
 import { createToolbox } from "~/blockly/toolbox";
 import {
   clearWorkspaceState,
@@ -60,12 +60,19 @@ export default function BlocklyEditor(props: {
       grid: { spacing: 24, length: 4, colour: "#b5bebb", snap: false },
       move: { scrollbars: true, drag: true, wheel: true },
       zoom: { controls: true, wheel: true, startScale: 0.9 },
+      plugins: { flyoutsVerticalToolbox: FixedScaleFlyout },
     });
     const seed = () => {
       const start = workspace!.newBlock("program_start");
       start.initSvg();
       start.render();
-      start.moveBy(35, 35);
+      // Center horizontally so the open flyout on the left does not cover it.
+      const view = workspace!.getMetricsManager().getViewMetrics(true);
+      const { width } = start.getHeightWidth();
+      start.moveBy(
+        view.left + (view.width - width) / 2,
+        view.top + view.height / 4,
+      );
     };
     const saved = storage ? loadWorkspaceState(storage) : null;
     restoring = true;
@@ -225,6 +232,34 @@ const blocklyEditor = css`
 
   & .blocklySvg {
     border: 0;
+  }
+
+  /* Blockly sizes the toolbox to its widest category by default. */
+  & .blocklyToolbox {
+    box-sizing: border-box;
+    width: 120px;
+    border-right: 1px solid #aaa;
+  }
+
+  & .blocklyToolboxCategory {
+    height: 33px;
+    cursor: pointer;
+  }
+
+  /* Blockly's default white hover is invisible on the light toolbox. */
+  & .blocklyToolboxCategory:not(.blocklyToolboxSelected):hover {
+    background-color: rgba(0, 0, 0, 0.08);
+  }
+
+  & .blocklyTreeRowContentContainer {
+    display: flex;
+    align-items: center;
+    height: 100%;
+  }
+
+  /* Categories have no icons; the empty slot only indents the label. */
+  & .blocklyToolboxCategoryIcon {
+    width: 7px;
   }
 
   @media (max-width: 720px) {

@@ -1,5 +1,6 @@
 import { css } from "@acab/ecsstatic";
 import type { Component } from "solid-js";
+import { setCurrentSidebarTab, SidebarTab } from "~/components/SideBar";
 import { programButton } from "~/components/styles";
 import { canRun, runProgram } from "~/program/actions";
 import { ProgramValidationError } from "~/program/types";
@@ -24,7 +25,7 @@ const RunButton: Component = () => {
     try {
       const program = handle.compile();
       const accepted = await runProgram(program);
-      if (accepted)
+      if (accepted) {
         updateStatusStore({
           sent: {
             revision: at,
@@ -32,6 +33,9 @@ const RunButton: Component = () => {
             runId: accepted.runId,
           },
         });
+        // show "Parts Info" tab
+        setCurrentSidebarTab(SidebarTab.PARTS_INFO);
+      }
     } catch (error) {
       updateStatusStore({
         diagnostic:

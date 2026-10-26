@@ -11,8 +11,8 @@ export const dummyParts: Part[] = [
   { id: "led_yellow", type: "led", label: "黄色LED", pins: [16] },
   { id: "led_blue", type: "led", label: "青色LED", pins: [4] },
   { id: "buzzer", type: "buzzer", label: "ブザー", pins: [23] },
-  { id: "temperature", type: "thermo", label: "温度", pins: [21, 22] },
-  { id: "distance", type: "tof", label: "距離", pins: [21, 22] },
+  { id: "temperature", type: "thermo", label: "温度センサ", pins: [21, 22] },
+  { id: "distance", type: "tof", label: "距離センサ", pins: [21, 22] },
 ];
 
 /** 部品リストの1行をカタログ1件にする。説明・単位は種類で決まる。 */
