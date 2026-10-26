@@ -73,7 +73,7 @@ const labels: Record<ProgramStatus, string> = {
 };
 const ProgramStatus: Component = () => {
   return (
-    <span class={programStatus} role="status">
+    <span class={programStatus} role="status" aria-label="実行状態">
       {deviceSource === "dummy"
         ? "実機未接続"
         : !programStore.known
