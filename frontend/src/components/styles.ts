@@ -28,7 +28,7 @@ export const runButton = css`
   padding: 7px 12px;
   border: 1px solid #d3dfd9;
   border-radius: 8px;
-  background: #2090ff;
+  background: var(--color-accent);
   color: #ffffff;
   font: inherit;
   font-size: 14px;

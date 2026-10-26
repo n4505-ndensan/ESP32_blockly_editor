@@ -314,7 +314,7 @@ const settingsTable = css`
 
 /** Overrides the ghostButton colours; ./styles is imported first, so its rules come earlier. */
 const settingsAddButton = css`
-  background: #2090ff;
+  background: var(--color-accent);
   color: #fff;
 
   &:hover:not(:disabled) {
