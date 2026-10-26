@@ -1,13 +1,19 @@
 import { createStore, produce, reconcile } from "solid-js/store";
-import type { Device, DeviceState } from "../device/types";
-import { DeviceRevisions, deviceSource as selectDeviceSource } from "../device/session";
+import {
+  DeviceRevisions,
+  deviceSource as selectDeviceSource,
+} from "~/device/session";
+import type { Device, DeviceState } from "~/device/types";
 
 export type DeviceSource = "dummy" | "sse";
 
 // Vite dev (including LAN access) and local build previews use dummy devices.
 /** 起動後に変わらないので、ストアではなく定数として持つ。 */
-export const deviceSource: DeviceSource =
-  selectDeviceSource(import.meta.env.DEV, location.hostname, import.meta.env.VITE_ESP32_TARGET ?? "");
+export const deviceSource: DeviceSource = selectDeviceSource(
+  import.meta.env.DEV,
+  location.hostname,
+  import.meta.env.VITE_ESP32_TARGET ?? "",
+);
 const revisions = new DeviceRevisions();
 export const catalogBootId = () => revisions.bootId;
 
@@ -55,13 +61,27 @@ export const applyStates = (entries: readonly StateEntry[]) => {
 };
 
 /** 部品が入れ替わっても取りこぼさないよう、IDを見て入れ替える。 */
-export const replaceCatalog = (devices: readonly Device[], bootId = "dummy", revision = 0) => {
-  revisions.reset(bootId, revision, devices.map((d) => d.id));
+export const replaceCatalog = (
+  devices: readonly Device[],
+  bootId = "dummy",
+  revision = 0,
+) => {
+  revisions.reset(
+    bootId,
+    revision,
+    devices.map((d) => d.id),
+  );
   setDeviceStore("devices", reconcile([...devices], { key: "id" }));
 };
 
-export const applyConfirmedStates = (entries: readonly StateEntry[], bootId: string, revision: number) => {
-  applyStates(entries.filter((entry) => revisions.accept(bootId, revision, entry.id)));
+export const applyConfirmedStates = (
+  entries: readonly StateEntry[],
+  bootId: string,
+  revision: number,
+) => {
+  applyStates(
+    entries.filter((entry) => revisions.accept(bootId, revision, entry.id)),
+  );
 };
 
 export const clearSensorValues = () => {
@@ -69,7 +89,8 @@ export const clearSensorValues = () => {
     "devices",
     produce((list) => {
       for (const device of list) {
-        if (device.kind === "sensor") device.state = { value: null, status: "unavailable" };
+        if (device.kind === "sensor")
+          device.state = { value: null, status: "unavailable" };
       }
     }),
   );

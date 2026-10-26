@@ -1,4 +1,4 @@
-import type { PartType } from "../settings/types";
+import type { PartType } from "~/settings/types";
 
 // ESP32の`GET /api/devices`・`devices`イベントとそろえた型。
 // 仕様はadr/0001-device-state-and-control.md、adr/0008-held-distance-value.mdを参照。

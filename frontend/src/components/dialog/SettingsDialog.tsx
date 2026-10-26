@@ -1,22 +1,62 @@
 import { css } from "@acab/ecsstatic";
-import { createEffect, createMemo, createSignal, For, Index, Match, Show, Switch } from "solid-js";
-import { loadSettings, saveSettings } from "../settings/client";
-import { defaultLabel, defaultPins, MAX_PARTS, nextPartId, pinOwners, validateSettings } from "../settings/rules";
-import { PART_TYPES } from "../settings/types";
-import type { DeviceSettings, Part, PartType } from "../settings/types";
-import { ghostButton, panelHeading, runButton } from "./styles";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  Index,
+  Match,
+  Show,
+  Switch,
+} from "solid-js";
+import { accentButton, ghostButton, panelHeading } from "~/components/styles";
+import { loadSettings, saveSettings } from "~/settings/client";
+import {
+  defaultLabel,
+  defaultPins,
+  MAX_PARTS,
+  nextPartId,
+  pinOwners,
+  validateSettings,
+} from "~/settings/rules";
+import type { DeviceSettings, Part, PartType } from "~/settings/types";
+import { PART_TYPES } from "~/settings/types";
 
-const typeChoices = Object.entries(PART_TYPES) as [PartType, (typeof PART_TYPES)[PartType]][];
+const typeChoices = Object.entries(PART_TYPES) as [
+  PartType,
+  (typeof PART_TYPES)[PartType],
+][];
 
-function PinSelect(props: { value: number | undefined; choices: readonly number[]; note: (pin: number) => string; label: string; onChange: (pin: number) => void }) {
+function PinSelect(props: {
+  value: number | undefined;
+  choices: readonly number[];
+  note: (pin: number) => string;
+  label: string;
+  onChange: (pin: number) => void;
+}) {
   // 候補外のピンが保存されていても、選択中の値として見えるようにする。
-  const choices = () => (props.value === undefined || props.choices.includes(props.value) ? props.choices : [props.value, ...props.choices]);
+  const choices = () =>
+    props.value === undefined || props.choices.includes(props.value)
+      ? props.choices
+      : [props.value, ...props.choices];
   return (
-    <select aria-label={props.label} onChange={(event) => props.onChange(Number(event.currentTarget.value))}>
+    <select
+      aria-label={props.label}
+      onChange={(event) => props.onChange(Number(event.currentTarget.value))}
+    >
       <Show when={props.value === undefined}>
-        <option value="" disabled selected>選択</option>
+        <option value="" disabled selected>
+          選択
+        </option>
       </Show>
-      <For each={choices()}>{(pin) => <option value={pin} selected={pin === props.value}>GPIO{pin}{props.note(pin)}</option>}</For>
+      <For each={choices()}>
+        {(pin) => (
+          <option value={pin} selected={pin === props.value}>
+            GPIO{pin}
+            {props.note(pin)}
+          </option>
+        )}
+      </For>
     </select>
   );
 }
@@ -39,11 +79,23 @@ function PinCells(props: {
   return (
     <>
       <td>
-        <PinSelect value={props.pins[0]} choices={props.choices} note={props.note} label={`${props.label}の${i2c() ? "SDA" : "ピン"}`} onChange={(pin) => set(0, pin)} />
+        <PinSelect
+          value={props.pins[0]}
+          choices={props.choices}
+          note={props.note}
+          label={`${props.label}の${i2c() ? "SDA" : "ピン"}`}
+          onChange={(pin) => set(0, pin)}
+        />
       </td>
       <td>
         <Show when={i2c()}>
-          <PinSelect value={props.pins[1]} choices={props.choices} note={props.note} label={`${props.label}のSCL`} onChange={(pin) => set(1, pin)} />
+          <PinSelect
+            value={props.pins[1]}
+            choices={props.choices}
+            note={props.note}
+            label={`${props.label}のSCL`}
+            onChange={(pin) => set(1, pin)}
+          />
         </Show>
       </td>
     </>
@@ -51,7 +103,10 @@ function PinCells(props: {
 }
 
 /** 部品リストなどの設定。編集は下書きに対して行い、保存したときだけ反映する。 */
-export default function SettingsDialog(props: { open: boolean; onClose: () => void }) {
+export default function SettingsDialog(props: {
+  open: boolean;
+  onClose: () => void;
+}) {
   let dialog!: HTMLDialogElement;
   const [candidatePins, setCandidatePins] = createSignal<number[]>();
   const [parts, setParts] = createSignal<Part[]>([]);
@@ -75,7 +130,10 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
   const noteFor = (self: number) => (pin: number) => {
     const names = (owners().get(pin) ?? [])
       .filter((index) => index !== self)
-      .map((index) => parts()[index].label.trim() || PART_TYPES[parts()[index].type].name);
+      .map(
+        (index) =>
+          parts()[index].label.trim() || PART_TYPES[parts()[index].type].name,
+      );
     return names.length ? `（${names.join("・")}）` : "";
   };
 
@@ -100,7 +158,9 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
       setCandidatePins(settings.candidatePins);
       resetNewRow("led");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "設定を読み込めませんでした。");
+      setError(
+        cause instanceof Error ? cause.message : "設定を読み込めませんでした。",
+      );
     }
   };
 
@@ -112,12 +172,19 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
   });
 
   const update = (index: number, patch: Partial<Part>) =>
-    setParts((list) => list.map((part, i) => (i === index ? { ...part, ...patch } : part)));
+    setParts((list) =>
+      list.map((part, i) => (i === index ? { ...part, ...patch } : part)),
+    );
 
   const add = () => {
     if (!canAdd()) return;
     const type = newType();
-    const part: Part = { id: nextPartId(type, parts()), type, label: newLabel().trim() || defaultLabel(type, parts()), pins: newPins() as number[] };
+    const part: Part = {
+      id: nextPartId(type, parts()),
+      type,
+      label: newLabel().trim() || defaultLabel(type, parts()),
+      pins: newPins() as number[],
+    };
     setParts([...parts(), part]);
     resetNewRow(type);
   };
@@ -127,25 +194,40 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
     setSaving(true);
     setError(null);
     try {
-      const result = await saveSettings(parts().map((part) => ({ ...part, label: part.label.trim() })));
+      const result = await saveSettings(
+        parts().map((part) => ({ ...part, label: part.label.trim() })),
+      );
       if (result === "restarting") setRestarting(true);
       else props.onClose();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "保存できませんでした。");
+      setError(
+        cause instanceof Error ? cause.message : "保存できませんでした。",
+      );
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <dialog ref={dialog} class={settingsDialog} aria-labelledby="settings-title" onClose={() => props.onClose()}>
-      <h2 id="settings-title" class={`${panelHeading} ${settingsTitle}`}>設定</h2>
+    <dialog
+      ref={dialog}
+      class={settingsDialog}
+      aria-labelledby="settings-title"
+      onClose={() => props.onClose()}
+    >
+      <h2 id="settings-title" class={`${panelHeading} ${settingsTitle}`}>
+        settings
+      </h2>
 
       <section class={settingsSection} aria-labelledby="settings-parts-title">
         <h3 id="settings-parts-title">部品リスト</h3>
-        <Switch fallback={<p class={settingsMessage}>{error() ?? "読み込み中…"}</p>}>
+        <Switch
+          fallback={<p class={settingsMessage}>{error() ?? "読み込み中…"}</p>}
+        >
           <Match when={restarting()}>
-            <p class={settingsMessage} role="status">保存しました。ESP32を再起動して反映します。再接続まで数秒かかります。</p>
+            <p class={settingsMessage} role="status">
+              保存しました。ESP32を再起動して反映します。再接続まで数秒かかります。
+            </p>
           </Match>
           <Match when={candidatePins()}>
             {(pins) => (
@@ -165,7 +247,15 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
                       <tr>
                         <td>{PART_TYPES[part().type].name}</td>
                         <td>
-                          <input value={part().label} aria-label="名前" onInput={(event) => update(index, { label: event.currentTarget.value })} />
+                          <input
+                            value={part().label}
+                            aria-label="名前"
+                            onInput={(event) =>
+                              update(index, {
+                                label: event.currentTarget.value,
+                              })
+                            }
+                          />
                         </td>
                         <PinCells
                           type={part().type}
@@ -173,10 +263,20 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
                           choices={pins()}
                           note={noteFor(index)}
                           label={part().label}
-                          onChange={(next) => update(index, { pins: next as number[] })}
+                          onChange={(next) =>
+                            update(index, { pins: next as number[] })
+                          }
                         />
                         <td>
-                          <button type="button" class={ghostButton} onClick={() => setParts(parts().filter((_, i) => i !== index))}>削除</button>
+                          <button
+                            type="button"
+                            class={ghostButton}
+                            onClick={() =>
+                              setParts(parts().filter((_, i) => i !== index))
+                            }
+                          >
+                            削除
+                          </button>
                         </td>
                       </tr>
                     )}
@@ -185,8 +285,22 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
                 <tfoot>
                   <tr>
                     <td>
-                      <select aria-label="追加する部品の種類" onChange={(event) => resetNewRow(event.currentTarget.value as PartType)}>
-                        <For each={typeChoices}>{([value, info]) => <option value={value} selected={value === newType()}>{info.name}</option>}</For>
+                      <select
+                        aria-label="追加する部品の種類"
+                        onChange={(event) =>
+                          resetNewRow(event.currentTarget.value as PartType)
+                        }
+                      >
+                        <For each={typeChoices}>
+                          {([value, info]) => (
+                            <option
+                              value={value}
+                              selected={value === newType()}
+                            >
+                              {info.name}
+                            </option>
+                          )}
+                        </For>
                       </select>
                     </td>
                     <td>
@@ -194,12 +308,28 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
                         value={newLabel()}
                         aria-label="追加する部品の名前"
                         placeholder={defaultLabel(newType(), parts())}
-                        onInput={(event) => setNewLabel(event.currentTarget.value)}
+                        onInput={(event) =>
+                          setNewLabel(event.currentTarget.value)
+                        }
                       />
                     </td>
-                    <PinCells type={newType()} pins={newPins()} choices={pins()} note={noteFor(-1)} label="追加する部品" onChange={setNewPins} />
+                    <PinCells
+                      type={newType()}
+                      pins={newPins()}
+                      choices={pins()}
+                      note={noteFor(-1)}
+                      label="追加する部品"
+                      onChange={setNewPins}
+                    />
                     <td>
-                      <button type="button" class={`${ghostButton} ${settingsAddButton}`} disabled={!canAdd()} onClick={add}>追加</button>
+                      <button
+                        type="button"
+                        class={`${ghostButton} ${settingsAddButton}`}
+                        disabled={!canAdd()}
+                        onClick={add}
+                      >
+                        追加
+                      </button>
                     </td>
                   </tr>
                 </tfoot>
@@ -209,16 +339,48 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
         </Switch>
       </section>
 
-      <Show when={!restarting() && draft() && (error() ? [error()!] : problems()).length > 0}>
+      <Show
+        when={
+          !restarting() &&
+          draft() &&
+          (error() ? [error()!] : problems()).length > 0
+        }
+      >
         <ul class={settingsProblems} role="alert">
-          <For each={error() ? [error()!] : problems()}>{(message) => <li>{message}</li>}</For>
+          <For each={error() ? [error()!] : problems()}>
+            {(message) => <li>{message}</li>}
+          </For>
         </ul>
       </Show>
 
       <div class={settingsActions}>
-        <Show when={!restarting()} fallback={<button type="button" class={ghostButton} onClick={() => props.onClose()}>閉じる</button>}>
-          <button type="button" class={ghostButton} onClick={() => props.onClose()}>キャンセル</button>
-          <button type="button" class={runButton} disabled={!draft() || problems().length > 0 || saving()} onClick={() => void save()}>保存</button>
+        <Show
+          when={!restarting()}
+          fallback={
+            <button
+              type="button"
+              class={ghostButton}
+              onClick={() => props.onClose()}
+            >
+              閉じる
+            </button>
+          }
+        >
+          <button
+            type="button"
+            class={ghostButton}
+            onClick={() => props.onClose()}
+          >
+            キャンセル
+          </button>
+          <button
+            type="button"
+            class={accentButton}
+            disabled={!draft() || problems().length > 0 || saving()}
+            onClick={() => void save()}
+          >
+            保存
+          </button>
         </Show>
       </div>
     </dialog>
@@ -230,6 +392,7 @@ const settingsDialog = css`
   max-height: calc(100dvh - 32px);
   padding: 0;
   border: 1px solid #222222;
+  border-radius: 6px;
   background: #fff;
   color: inherit;
 
@@ -245,7 +408,7 @@ const settingsTitle = css`
 const settingsSection = css`
   & h3 {
     padding: 12px 24px 8px;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 500;
   }
 `;
@@ -261,17 +424,17 @@ const settingsTable = css`
   width: calc(100% - 48px);
   margin: 0 24px;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 12px;
 
   & th {
     padding: 6px 8px;
     color: #6d7d73;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 500;
     text-align: left;
   }
   & td {
-    padding: 6px 8px;
+    padding: 4px 8px;
     border-top: 1px solid #edf0ee;
     white-space: nowrap;
   }
@@ -328,7 +491,7 @@ const settingsProblems = css`
   border-top: 1px solid #f0ded9;
   background: #fbf1ef;
   color: #9d4b3f;
-  font-size: 11px;
+  font-size: 12px;
 `;
 
 const settingsActions = css`

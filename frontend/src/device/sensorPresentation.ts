@@ -1,5 +1,5 @@
-import type { PartType } from "../settings/types";
-import type { DeviceState } from "./types";
+import type { DeviceState } from "~/device/types";
+import type { PartType } from "~/settings/types";
 
 /** 表示だけを変換する。値の保持・鮮度判定はESP32に任せる。heldもokと同じく値だけを出す。 */
 export function sensorPresentation(type: PartType, state: DeviceState) {

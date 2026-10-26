@@ -1,7 +1,7 @@
 import { render } from "solid-js/web";
 // Global base styles first, so component styles from ecsstatic come after them.
-import "./styles.css";
-import App from "./App";
+import App from "~/App";
+import "~/styles.css";
 
 const root = document.getElementById("root");
 

@@ -18,7 +18,8 @@ async function collect(directory, prefix = "") {
       await collect(sourcePath, relativePath + "/");
       continue;
     }
-    if (!entry.isFile()) throw new Error(`Unsupported build entry: ${sourcePath}`);
+    if (!entry.isFile())
+      throw new Error(`Unsupported build entry: ${sourcePath}`);
 
     const original = await readFile(sourcePath);
     const compressed = compressExtensions.has(extname(entry.name))

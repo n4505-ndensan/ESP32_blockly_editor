@@ -6,7 +6,9 @@ export function deviceFields(flyout = false) {
   const workspace = flyout ? main.getFlyout()!.getWorkspace() : main;
   return workspace.getAllBlocks(false).flatMap((block) => {
     const field = block.getField("DEVICE");
-    return field ? [{ id: block.id, value: field.getValue(), text: field.getText() }] : [];
+    return field
+      ? [{ id: block.id, value: field.getValue(), text: field.getText() }]
+      : [];
   });
 }
 

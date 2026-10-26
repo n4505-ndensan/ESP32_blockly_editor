@@ -1,20 +1,38 @@
 import { describe, expect, it } from "vitest";
-import { STORAGE_KEY, clearWorkspaceState, hasBlocks, loadWorkspaceState, saveWorkspaceState } from "../src/blockly/workspaceStorage";
 import type { StorageLike } from "../src/blockly/workspaceStorage";
+import {
+  STORAGE_KEY,
+  clearWorkspaceState,
+  hasBlocks,
+  loadWorkspaceState,
+  saveWorkspaceState,
+} from "../src/blockly/workspaceStorage";
 
-const memoryStorage = (initial: Record<string, string> = {}): StorageLike & { data: Record<string, string> } => {
+const memoryStorage = (
+  initial: Record<string, string> = {},
+): StorageLike & { data: Record<string, string> } => {
   const data = { ...initial };
   return {
     data,
     getItem: (key) => (key in data ? data[key] : null),
-    setItem: (key, value) => { data[key] = value; },
-    removeItem: (key) => { delete data[key]; },
+    setItem: (key, value) => {
+      data[key] = value;
+    },
+    removeItem: (key) => {
+      delete data[key];
+    },
   };
 };
 const failingStorage = (): StorageLike => ({
-  getItem: () => { throw new Error("blocked"); },
-  setItem: () => { throw new Error("quota"); },
-  removeItem: () => { throw new Error("blocked"); },
+  getItem: () => {
+    throw new Error("blocked");
+  },
+  setItem: () => {
+    throw new Error("quota");
+  },
+  removeItem: () => {
+    throw new Error("blocked");
+  },
 });
 
 const state = { blocks: { blocks: [{ type: "program_start", id: "a" }] } };
@@ -35,11 +53,15 @@ describe("workspace storage", () => {
     ["a non-object payload", '"text"'],
     ["a snapshot without state", '{"version":1}'],
   ])("ignores %s instead of throwing", (_label, raw) => {
-    expect(loadWorkspaceState(memoryStorage({ [STORAGE_KEY]: raw }))).toBeNull();
+    expect(
+      loadWorkspaceState(memoryStorage({ [STORAGE_KEY]: raw })),
+    ).toBeNull();
   });
 
   it("drops a snapshot written by another format version", () => {
-    const storage = memoryStorage({ [STORAGE_KEY]: JSON.stringify({ version: 99, savedAt: 0, state }) });
+    const storage = memoryStorage({
+      [STORAGE_KEY]: JSON.stringify({ version: 99, savedAt: 0, state }),
+    });
     expect(loadWorkspaceState(storage)).toBeNull();
     expect(storage.data[STORAGE_KEY]).toBeUndefined();
   });

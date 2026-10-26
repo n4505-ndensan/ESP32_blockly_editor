@@ -14,7 +14,9 @@ secrets.h
 # Frontend dependencies and generated files
 frontend/node_modules/
 frontend/dist/
-frontend/static/media/
+frontend/static/blockly_media/
 data/web/
 frontend/test-results/
 frontend/playwright-report/
+
+.claude/

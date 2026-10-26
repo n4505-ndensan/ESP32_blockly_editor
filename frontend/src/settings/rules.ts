@@ -1,5 +1,5 @@
-import { PART_TYPES } from "./types";
-import type { DeviceSettings, Part, PartType } from "./types";
+import type { DeviceSettings, Part, PartType } from "~/settings/types";
+import { PART_TYPES } from "~/settings/types";
 
 // ESP32も保存時に同じ判定をする。ここは画面で先に知らせるためのもの。
 
@@ -22,17 +22,29 @@ function nextNumber(type: PartType, parts: readonly Part[]): number {
 }
 
 /** `led_2`, `distance_2`…の形で、使われていない番号を振る。 */
-export const nextPartId = (type: PartType, parts: readonly Part[]) => `${PART_TYPES[type].idBase}_${nextNumber(type, parts)}`;
+export const nextPartId = (type: PartType, parts: readonly Part[]) =>
+  `${PART_TYPES[type].idBase}_${nextNumber(type, parts)}`;
 
-export const defaultLabel = (type: PartType, parts: readonly Part[]) => `${PART_TYPES[type].name} ${nextNumber(type, parts)}`;
+export const defaultLabel = (type: PartType, parts: readonly Part[]) =>
+  `${PART_TYPES[type].name} ${nextNumber(type, parts)}`;
 
 /** 新しい行の初期ピン。センサは同じ種類がまだ載っていないI2Cバスがあればそこに並べる。 */
-export function defaultPins(type: PartType, settings: DeviceSettings): number[] {
+export function defaultPins(
+  type: PartType,
+  settings: DeviceSettings,
+): number[] {
   const { parts, candidatePins } = settings;
   const used = new Set(parts.flatMap((part) => part.pins));
   const free = candidatePins.filter((pin) => !used.has(pin));
   if (!PART_TYPES[type].i2c) return free.slice(0, 1);
-  const bus = parts.find((part) => isI2c(part) && !parts.some((other) => other.type === type && busKey(other.pins) === busKey(part.pins)));
+  const bus = parts.find(
+    (part) =>
+      isI2c(part) &&
+      !parts.some(
+        (other) =>
+          other.type === type && busKey(other.pins) === busKey(part.pins),
+      ),
+  );
   return bus ? [...bus.pins] : free.slice(0, 2);
 }
 
@@ -40,7 +52,8 @@ export function defaultPins(type: PartType, settings: DeviceSettings): number[] 
 export function pinOwners(parts: readonly Part[]): Map<number, number[]> {
   const owners = new Map<number, number[]>();
   parts.forEach((part, index) => {
-    for (const pin of new Set(part.pins)) owners.set(pin, [...(owners.get(pin) ?? []), index]);
+    for (const pin of new Set(part.pins))
+      owners.set(pin, [...(owners.get(pin) ?? []), index]);
   });
   return owners;
 }
@@ -49,20 +62,25 @@ export function pinOwners(parts: readonly Part[]): Map<number, number[]> {
 export function validateSettings(settings: DeviceSettings): string[] {
   const { candidatePins, parts } = settings;
   const problems = new Set<string>();
-  if (parts.length > MAX_PARTS) problems.add(`部品は${MAX_PARTS}個まで登録できます。`);
+  if (parts.length > MAX_PARTS)
+    problems.add(`部品は${MAX_PARTS}個まで登録できます。`);
 
-  const ids = new Set<string>(), labels = new Set<string>();
+  const ids = new Set<string>(),
+    labels = new Set<string>();
   const uses = new Map<number, { role: string; bus: string; name: string }>();
   const buses = new Map<string, Set<PartType>>();
   for (const part of parts) {
-    if (ids.has(part.id)) problems.add(`部品ID「${part.id}」が重なっています。`);
+    if (ids.has(part.id))
+      problems.add(`部品ID「${part.id}」が重なっています。`);
     ids.add(part.id);
 
     const label = part.label.trim();
     const name = label || PART_TYPES[part.type].name;
     if (!label) problems.add("名前が空の部品があります。");
-    else if (bytes(label) > MAX_LABEL_BYTES) problems.add(`「${label}」は名前が長すぎます。`);
-    else if (labels.has(label)) problems.add(`「${label}」という名前が重なっています。`);
+    else if (bytes(label) > MAX_LABEL_BYTES)
+      problems.add(`「${label}」は名前が長すぎます。`);
+    else if (labels.has(label))
+      problems.add(`「${label}」という名前が重なっています。`);
     labels.add(label);
 
     const i2c = isI2c(part);
@@ -84,15 +102,21 @@ export function validateSettings(settings: DeviceSettings): string[] {
       const held = uses.get(pin);
       if (!held) uses.set(pin, { role: roles[index], bus, name });
       // 同じSDA・SCLの組を使うI2C部品だけは、ピンを共有できる。
-      else if (!(i2c && held.role === roles[index] && held.bus === bus)) problems.add(`GPIO${pin}が「${held.name}」と「${name}」で重なっています。`);
+      else if (!(i2c && held.role === roles[index] && held.bus === bus))
+        problems.add(
+          `GPIO${pin}が「${held.name}」と「${name}」で重なっています。`,
+        );
     });
     if (i2c) {
       const types = buses.get(bus) ?? new Set<PartType>();
       if (types.has(part.type))
-        problems.add(`同じI2C（SDA GPIO${part.pins[0]} / SCL GPIO${part.pins[1]}）に${PART_TYPES[part.type].name}は1個までです。`);
+        problems.add(
+          `同じI2C（SDA GPIO${part.pins[0]} / SCL GPIO${part.pins[1]}）に${PART_TYPES[part.type].name}は1個までです。`,
+        );
       buses.set(bus, types.add(part.type));
     }
   }
-  if (buses.size > MAX_I2C_BUSES) problems.add(`I2C（SDA・SCLの組）は${MAX_I2C_BUSES}組までです。`);
+  if (buses.size > MAX_I2C_BUSES)
+    problems.add(`I2C（SDA・SCLの組）は${MAX_I2C_BUSES}組までです。`);
   return [...problems];
 }
