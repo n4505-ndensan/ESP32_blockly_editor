@@ -1,4 +1,6 @@
 #include <WiFi.h>
+#include <ESPmDNS.h>
+#include <esp_mac.h>
 #include <FS.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
@@ -21,21 +23,46 @@ constexpr uint32_t PUBLISH_INTERVAL_MS = 100;
 AsyncWebServer server(HTTP_PORT);
 AsyncEventSource events("/events");
 
-void wifi_connect(const char *ssid, const char *password)
+// 複数台を同じネットワークで使うため、MACアドレス下位3バイトから台ごとに一意な名前を作る。
+String device_hostname()
+{
+  uint8_t mac[6];
+  esp_read_mac(mac, ESP_MAC_WIFI_STA);
+  char name[16];
+  snprintf(name, sizeof(name), "esp32-%02x%02x%02x", mac[3], mac[4], mac[5]);
+  return String(name);
+}
+
+void wifi_connect(const char *ssid, const char *password, const char *hostname)
 {
   Serial.println("");
   Serial.print("WiFi Connenting");
 
+  // ルータのDHCPクライアント一覧にも同じ名前を出す。begin()より前に設定する。
+  WiFi.setHostname(hostname);
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {
     Serial.print(".");
     delay(1000);
   }
+  // 省電力中はmDNSのマルチキャストを取りこぼし、.localの名前解決が不安定になる。
+  WiFi.setSleep(false);
 
   Serial.println("");
   Serial.print("Connected : ");
   Serial.println(WiFi.localIP());
+}
+
+void mdns_start(const char *hostname)
+{
+  if (!MDNS.begin(hostname))
+  {
+    Serial.println("mDNS start failed.");
+    return;
+  }
+  MDNS.addService("http", "tcp", HTTP_PORT);
+  Serial.printf("URL : http://%s.local/\n", hostname);
 }
 
 void setup()
@@ -53,7 +80,9 @@ void setup()
     return;
   }
 
-  wifi_connect(WIFI_SSID, WIFI_PASSWORD);
+  const String hostname = device_hostname();
+  wifi_connect(WIFI_SSID, WIFI_PASSWORD, hostname.c_str());
+  mdns_start(hostname.c_str());
 
   // server config
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
@@ -76,6 +105,9 @@ void setup()
   registerProgramApi(server);
   registerSettingsApi(server);
 
+  // Images change only with uploadfs, so let browsers reuse them without revalidating.
+  // Registered before "/" because handlers are matched in registration order.
+  server.serveStatic("/images/", LittleFS, "/web/images/").setCacheControl("max-age=86400");
   // Serve the SolidJS build and its assets; keep /events on the SSE handler.
   server.serveStatic("/", LittleFS, "/web/").setDefaultFile("index.html");
 
