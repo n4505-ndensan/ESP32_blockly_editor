@@ -382,6 +382,111 @@ h2 {
   border: 0;
 }
 
+.settings-dialog {
+  width: min(820px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 0;
+  border: 1px solid #222222;
+  background: #fff;
+  color: inherit;
+}
+.settings-dialog::backdrop {
+  background: #15201c40;
+}
+.settings-title {
+  border-bottom: 1px solid #222222;
+}
+.settings-section h3 {
+  padding: 12px 24px 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.settings-message {
+  padding: 12px 24px;
+  border-top: 1px solid #edf0ee;
+  color: #63786b;
+  font-size: 12px;
+}
+
+.settings-table {
+  width: calc(100% - 48px);
+  margin: 0 24px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.settings-table th {
+  padding: 6px 8px;
+  color: #6d7d73;
+  font-size: 11px;
+  font-weight: 500;
+  text-align: left;
+}
+.settings-table td {
+  padding: 6px 8px;
+  border-top: 1px solid #edf0ee;
+  white-space: nowrap;
+}
+.settings-table th:first-child,
+.settings-table td:first-child {
+  padding-left: 0;
+}
+.settings-table th:last-child,
+.settings-table td:last-child {
+  padding-right: 0;
+  text-align: right;
+}
+.settings-table tfoot::before {
+  content: "";
+  display: table-row;
+  height: 12px;
+}
+.settings-table tfoot td {
+  border-top-color: #d3dfd9;
+}
+.settings-add-button {
+  background: #2090ff;
+  color: #fff;
+}
+.settings-add-button:hover:not(:disabled) {
+  background: #1b7ad8;
+}
+
+.settings-table input,
+.settings-table select {
+  width: 100%;
+  min-width: 0;
+  padding: 4px 8px;
+  border: 1px solid #d3dfd9;
+  border-radius: 8px;
+  background: #fff;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+}
+.settings-table input:focus-visible,
+.settings-table select:focus-visible {
+  outline: 2px solid #438568;
+  outline-offset: 1px;
+}
+
+.settings-problems {
+  margin: 12px 0 0;
+  padding: 10px 24px 10px 40px;
+  border-top: 1px solid #f0ded9;
+  background: #fbf1ef;
+  color: #9d4b3f;
+  font-size: 11px;
+}
+
+.settings-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 12px 24px;
+  border-top: 1px solid #edf0ee;
+}
+
 @media (max-width: 900px) {
   .workspace-layout {
     grid-template-columns: 220px minmax(0, 1fr);
@@ -435,9 +540,4 @@ h2 {
   .blockly-editor {
     height: 480px;
   }
-}
-
-/* settings */
-.settings-table th {
-  text-align: left;
 }

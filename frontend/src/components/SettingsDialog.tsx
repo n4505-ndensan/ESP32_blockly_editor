@@ -137,13 +137,13 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
 
   return (
     <dialog ref={dialog} class="settings-dialog" aria-labelledby="settings-title" onClose={() => props.onClose()}>
-      <h2 id="settings-title">設定</h2>
+      <h2 id="settings-title" class="panel-heading settings-title">設定</h2>
 
-      <section aria-labelledby="settings-parts-title">
+      <section class="settings-section" aria-labelledby="settings-parts-title">
         <h3 id="settings-parts-title">部品リスト</h3>
-        <Switch fallback={<p>{error() ?? "読み込み中…"}</p>}>
+        <Switch fallback={<p class="settings-message">{error() ?? "読み込み中…"}</p>}>
           <Match when={restarting()}>
-            <p role="status">保存しました。ESP32を再起動して反映します。再接続まで数秒かかります。</p>
+            <p class="settings-message" role="status">保存しました。ESP32を再起動して反映します。再接続まで数秒かかります。</p>
           </Match>
           <Match when={candidatePins()}>
             {(pins) => (
@@ -174,7 +174,7 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
                           onChange={(next) => update(index, { pins: next as number[] })}
                         />
                         <td>
-                          <button type="button" onClick={() => setParts(parts().filter((_, i) => i !== index))}>削除</button>
+                          <button type="button" class="ghost-button" onClick={() => setParts(parts().filter((_, i) => i !== index))}>削除</button>
                         </td>
                       </tr>
                     )}
@@ -197,7 +197,7 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
                     </td>
                     <PinCells type={newType()} pins={newPins()} choices={pins()} note={noteFor(-1)} label="追加する部品" onChange={setNewPins} />
                     <td>
-                      <button type="button" disabled={!canAdd()} onClick={add}>追加</button>
+                      <button type="button" class="ghost-button settings-add-button" disabled={!canAdd()} onClick={add}>追加</button>
                     </td>
                   </tr>
                 </tfoot>
@@ -208,15 +208,15 @@ export default function SettingsDialog(props: { open: boolean; onClose: () => vo
       </section>
 
       <Show when={!restarting() && draft() && (error() ? [error()!] : problems()).length > 0}>
-        <ul role="alert">
+        <ul class="settings-problems" role="alert">
           <For each={error() ? [error()!] : problems()}>{(message) => <li>{message}</li>}</For>
         </ul>
       </Show>
 
-      <div>
-        <Show when={!restarting()} fallback={<button type="button" onClick={() => props.onClose()}>閉じる</button>}>
-          <button type="button" onClick={() => props.onClose()}>キャンセル</button>{" "}
-          <button type="button" disabled={!draft() || problems().length > 0 || saving()} onClick={() => void save()}>保存</button>
+      <div class="settings-actions">
+        <Show when={!restarting()} fallback={<button type="button" class="ghost-button" onClick={() => props.onClose()}>閉じる</button>}>
+          <button type="button" class="ghost-button" onClick={() => props.onClose()}>キャンセル</button>
+          <button type="button" class="run-button" disabled={!draft() || problems().length > 0 || saving()} onClick={() => void save()}>保存</button>
         </Show>
       </div>
     </dialog>
