@@ -388,8 +388,8 @@ export default function SettingsDialog(props: {
 }
 
 const settingsDialog = css`
-  width: min(820px, calc(100vw - 32px));
-  max-height: calc(100dvh - 32px);
+  width: min(820px, calc(100vw / var(--page-zoom) - 32px));
+  max-height: calc(100dvh / var(--page-zoom) - 32px);
   padding: 0;
   border: 1px solid #222222;
   border-radius: 6px;
