@@ -2,7 +2,10 @@ import { render } from "solid-js/web";
 // Global base styles first, so component styles from ecsstatic come after them.
 import App from "~/App";
 import { preloadTutorialImages } from "~/components/sidebar/TutorialTab";
+import { lockPixelScale } from "~/pixelScale";
 import "~/styles.css";
+
+lockPixelScale();
 
 const root = document.getElementById("root");
 

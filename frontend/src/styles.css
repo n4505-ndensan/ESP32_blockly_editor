@@ -46,6 +46,10 @@
 :root {
   --color-accent: #2090ff;
   --color-active: #1a9c55;
+  /* Set by lockPixelScale(); viewport units must be divided by it. */
+  --page-zoom: 1;
+
+  zoom: var(--page-zoom);
 
   font-family:
     PM12,
@@ -57,8 +61,8 @@
   background: #202020;
   font-synthesis: none;
   line-height: 1.6;
-  min-height: 100dvh;
-  height: 100dvh;
+  min-height: calc(100dvh / var(--page-zoom));
+  height: calc(100dvh / var(--page-zoom));
   margin: 0;
   padding: 0;
   font-size: 12px;
@@ -69,8 +73,8 @@ body {
   flex-direction: column;
   margin: 0;
   padding: 0;
-  min-height: 100dvh;
-  height: 100dvh;
+  min-height: calc(100dvh / var(--page-zoom));
+  height: calc(100dvh / var(--page-zoom));
   overflow: hidden;
 }
 

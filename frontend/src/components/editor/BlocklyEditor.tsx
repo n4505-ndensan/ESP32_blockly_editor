@@ -229,6 +229,8 @@ const blocklyEditor = css`
   width: 100%;
   height: 100%;
   isolation: isolate;
+  /* Blockly ignores ancestor zoom when mapping pointer coordinates. */
+  zoom: calc(1 / var(--page-zoom));
 
   & .blocklySvg {
     border: 0;
@@ -263,6 +265,6 @@ const blocklyEditor = css`
   }
 
   @media (max-width: 720px) {
-    height: 480px;
+    height: calc(480px * var(--page-zoom));
   }
 `;

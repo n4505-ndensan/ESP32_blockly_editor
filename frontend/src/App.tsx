@@ -36,8 +36,8 @@ const appShell = css`
   max-width: 1200px;
   margin: 0 auto;
   padding: 0;
-  min-height: 100dvh;
-  height: 100dvh;
+  min-height: calc(100dvh / var(--page-zoom));
+  height: calc(100dvh / var(--page-zoom));
   box-sizing: border-box;
   padding-top: 4px;
   padding-bottom: 24px;

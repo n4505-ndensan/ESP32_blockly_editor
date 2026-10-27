@@ -80,7 +80,7 @@ const sensorValue = css`
   font-variant-numeric: tabular-nums;
 
   @media (max-width: 720px) {
-    font-size: clamp(24px, 7vw, 34px);
+    font-size: clamp(24px, 7vw / var(--page-zoom), 34px);
   }
 `;
 
