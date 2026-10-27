@@ -1,6 +1,6 @@
 # ADR 0004: Web素材の保存先をLittleFSに移行する
 
-- ステータス: 採用
+- ステータス: 一部置き換え済み（[ADR 0010](0010-single-app-partition-layout.md)：パーティション配置。LittleFSの採用は継続）
 - 日付: 2026-09-14
 
 ## 背景
