@@ -20,8 +20,94 @@
 constexpr uint32_t SENSOR_INTERVAL_MS = 100;
 constexpr uint32_t PUBLISH_INTERVAL_MS = 100;
 
+// Reconnects that the Arduino core makes within this window are part of the wait.
+constexpr uint32_t WIFI_CONNECT_TIMEOUT_MS = 30000;
+constexpr uint32_t WIFI_BLINK_MS = 500;
+
 AsyncWebServer server(HTTP_PORT);
 AsyncEventSource events("/events");
+
+// The web UI is unreachable until setup finishes, so the kit LEDs and buzzer report it (adr/0013).
+enum SetupSignal : uint8_t
+{
+  SIGNAL_WHITE,
+  SIGNAL_BLUE,
+  SIGNAL_GREEN,
+  SIGNAL_RED,
+  SIGNAL_YELLOW,
+  SIGNAL_BUZZER,
+  SIGNAL_COUNT,
+};
+const char *const SETUP_SIGNAL_PARTS[SIGNAL_COUNT] = {"led_white", "led_blue", "led_green", "led_red", "led_yellow", "buzzer"};
+// Active output on each kit part's default pin, or -1 to skip that signal.
+int setupSignalDevices[SIGNAL_COUNT];
+
+// Failed setup steps, by the LED that reports them. Both can be lit.
+struct SetupFailures
+{
+  bool red = false;    // WiFi
+  bool yellow = false; // LittleFS, mDNS, sensor initialization
+};
+
+int output_on_pin(uint8_t pin)
+{
+  for (size_t i = 0; i < deviceCount(); i++)
+  {
+    const DeviceDescriptor &device = deviceDescriptor(i);
+    if (device.kind == DeviceKind::Output && device.pin == pin)
+      return static_cast<int>(i);
+  }
+  return -1;
+}
+
+// The kit is assumed to be wired on its default pins, whatever the active part list calls them.
+void find_setup_signals()
+{
+  PartList kit;
+  defaultPartList(kit);
+  for (size_t signal = 0; signal < SIGNAL_COUNT; signal++)
+  {
+    setupSignalDevices[signal] = -1;
+    for (size_t i = 0; i < kit.count; i++)
+    {
+      if (strcmp(kit.parts[i].id, SETUP_SIGNAL_PARTS[signal]) == 0)
+        setupSignalDevices[signal] = output_on_pin(kit.parts[i].pins[0]);
+    }
+  }
+}
+
+// Through setDeviceOutput() so the web UI shows the same state.
+void set_signal(SetupSignal signal, bool on)
+{
+  if (setupSignalDevices[signal] >= 0)
+    setDeviceOutput(setupSignalDevices[signal], on);
+}
+
+void play_success_signal()
+{
+  set_signal(SIGNAL_GREEN, true);
+  set_signal(SIGNAL_BUZZER, true);
+  delay(400);
+  set_signal(SIGNAL_BUZZER, false);
+  delay(600);
+  turnDeviceOutputsOff();
+}
+
+// Plays once per boot. The failure LEDs stay on until a program starts or they are operated manually.
+void play_failure_signal(const SetupFailures &failures)
+{
+  if (failures.red)
+    set_signal(SIGNAL_RED, true);
+  if (failures.yellow)
+    set_signal(SIGNAL_YELLOW, true);
+  for (int i = 0; i < 3; i++)
+  {
+    set_signal(SIGNAL_BUZZER, true);
+    delay(200);
+    set_signal(SIGNAL_BUZZER, false);
+    delay(200);
+  }
+}
 
 // 複数台を同じネットワークで使うため、MACアドレス下位3バイトから台ごとに一意な名前を作る。
 String device_hostname()
@@ -33,7 +119,7 @@ String device_hostname()
   return String(name);
 }
 
-void wifi_connect(const char *ssid, const char *password, const char *hostname)
+bool wifi_connect(const char *ssid, const char *password, const char *hostname)
 {
   Serial.println("");
   Serial.print("WiFi Connenting");
@@ -41,28 +127,45 @@ void wifi_connect(const char *ssid, const char *password, const char *hostname)
   // ルータのDHCPクライアント一覧にも同じ名前を出す。begin()より前に設定する。
   WiFi.setHostname(hostname);
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED)
+  const uint32_t startedAt = millis();
+  bool white = true;
+  while (WiFi.status() != WL_CONNECTED && millis() - startedAt < WIFI_CONNECT_TIMEOUT_MS)
   {
+    set_signal(SIGNAL_WHITE, white);
+    set_signal(SIGNAL_BLUE, !white);
+    white = !white;
     Serial.print(".");
-    delay(1000);
+    delay(WIFI_BLINK_MS);
+  }
+  set_signal(SIGNAL_WHITE, false);
+  set_signal(SIGNAL_BLUE, false);
+  Serial.println("");
+
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    // No further attempts until the next boot.
+    WiFi.disconnect(true);
+    Serial.println("WiFi connection timed out.");
+    return false;
   }
   // 省電力中はmDNSのマルチキャストを取りこぼし、.localの名前解決が不安定になる。
   WiFi.setSleep(false);
 
-  Serial.println("");
   Serial.print("Connected : ");
   Serial.println(WiFi.localIP());
+  return true;
 }
 
-void mdns_start(const char *hostname)
+bool mdns_start(const char *hostname)
 {
   if (!MDNS.begin(hostname))
   {
     Serial.println("mDNS start failed.");
-    return;
+    return false;
   }
   MDNS.addService("http", "tcp", HTTP_PORT);
   Serial.printf("URL : http://%s.local/\n", hostname);
+  return true;
 }
 
 void setup()
@@ -70,19 +173,29 @@ void setup()
   Serial.begin(115200);
   Serial.println("SETUP");
 
-  initDevices();
+  SetupFailures failures;
+  failures.yellow = !initDevices();
+  find_setup_signals();
   initProgramRuntime();
 
   // uploadfsで書き込んだLittleFSを使う。失敗しても自動フォーマットしない。
   if (!LittleFS.begin(false))
   {
     Serial.println("LittleFS mount failed. Upload the LittleFS image with 'pio run -t uploadfs'.");
+    failures.yellow = true;
+    play_failure_signal(failures);
     return;
   }
 
   const String hostname = device_hostname();
-  wifi_connect(WIFI_SSID, WIFI_PASSWORD, hostname.c_str());
-  mdns_start(hostname.c_str());
+  if (!wifi_connect(WIFI_SSID, WIFI_PASSWORD, hostname.c_str()))
+  {
+    failures.red = true;
+    play_failure_signal(failures);
+    return;
+  }
+  if (!mdns_start(hostname.c_str()))
+    failures.yellow = true;
 
   // server config
   DefaultHeaders::Instance().addHeader("Access-Control-Allow-Origin", "*");
@@ -111,6 +224,10 @@ void setup()
   // Serve the SolidJS build and its assets; keep /events on the SSE handler.
   server.serveStatic("/", LittleFS, "/web/").setDefaultFile("index.html");
 
+  if (failures.red || failures.yellow)
+    play_failure_signal(failures);
+  else
+    play_success_signal();
   server.begin();
 }
 

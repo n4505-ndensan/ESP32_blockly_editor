@@ -170,14 +170,15 @@ namespace
 #endif
     }
 }
-void initSensors(const SensorBus *buses, size_t count)
+bool initSensors(const SensorBus *buses, size_t count)
 {
     // センサが無いときはI2Cを開かない。SDA・SCLだったピンをLEDなどに使っていてもぶつからない。
     if (count == 0)
     {
         Serial.println("No I2C sensors in the part list");
-        return;
+        return true;
     }
+    bool allInitialized = true;
     for (size_t index = 0; index < count && index < MAX_I2C_BUSES; ++index)
     {
         const SensorBus &config = buses[index];
@@ -196,6 +197,7 @@ void initSensors(const SensorBus *buses, size_t count)
                 bus.distanceSensor.startContinuous(100);
             else
                 bus.distanceSample.reason = SensorReason::Disconnected;
+            allInitialized &= bus.distanceInitialized;
             Serial.println(bus.distanceInitialized ? "VL53L1X initialized" : "VL53L1X unavailable");
         }
         if (config.thermal)
@@ -203,6 +205,7 @@ void initSensors(const SensorBus *buses, size_t count)
             bus.thermalInitialized = bus.thermalSensor.begin(AMG8833_ADDRESS, bus.wire);
             if (!bus.thermalInitialized)
                 bus.thermalSample.reason = SensorReason::Disconnected;
+            allInitialized &= bus.thermalInitialized;
             Serial.println(bus.thermalInitialized ? "AMG8833 initialized" : "AMG8833 unavailable");
         }
 #ifdef SENSOR_DIAGNOSTICS
@@ -227,6 +230,7 @@ void initSensors(const SensorBus *buses, size_t count)
 #endif
     }
     delay(1000);
+    return allInitialized;
 }
 static SensorSample sampleTemperature(uint8_t index)
 {

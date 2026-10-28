@@ -10,7 +10,8 @@ struct SensorBus
 };
 
 // 部品リストに載っているセンサだけを初期化する。組が無ければI2Cを使わない。
-void initSensors(const SensorBus *buses, size_t count);
+// Returns false if any of them failed to initialize.
+bool initSensors(const SensorBus *buses, size_t count);
 // busはinitSensorsに渡した組の番号。
 SensorSample readTemperature(uint8_t bus);
 SensorSample readDistance(uint8_t bus);
