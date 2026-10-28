@@ -1,6 +1,6 @@
 # ADR 0007: センサ異常を数値0と区別する
 
-- ステータス: 一部置き換え済み（[ADR 0008](0008-held-distance-value.md): 一部の測距失敗の保持とheld状態）
+- ステータス: 一部置き換え済み（[ADR 0008](0008-held-distance-value.md): 一部の測距失敗の保持とheld状態、[ADR 0011](0011-wait-for-sensor-and-reconnect.md)、[ADR 0012](0012-sensor-failure-reasons.md)）
 - 日付: 2026-09-15
 - ADR 0001のセンサstate形式、ADR 0002の失敗時に0を返す決定を一部置き換える。
 

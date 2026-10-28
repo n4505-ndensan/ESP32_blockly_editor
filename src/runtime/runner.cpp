@@ -16,14 +16,19 @@ namespace
         ~Lock() { xSemaphoreGive(mutex); }
     };
 #ifdef SENSOR_DIAGNOSTICS
-    struct SensorReadFailure
+    // A change of the run state's waiting. Captured under the runtime mutex, printed outside it.
+    struct SensorWaitEvent
     {
-        bool pending = false;
+        const char *event = nullptr; // "wait", "resume" or "stop"
         int index = -1;
         uint32_t at = 0;
         SensorSample sample;
-        program::RunSnapshot run;
-    } sensorReadFailure;
+        uint32_t runId = 0;
+        char blockId[program::MAX_BLOCK_ID + 1] = {};
+    };
+    // A tick can end one wait and start another. publishSensorWait() drains them after every tick.
+    SensorWaitEvent sensorWaitEvents[2];
+    uint8_t sensorWaitEventCount = 0;
 #endif
     class Hardware : public program::Devices
     {
@@ -40,16 +45,6 @@ namespace
         {
             const auto state = deviceState(index);
             value = state.sample.value;
-#ifdef SENSOR_DIAGNOSTICS
-            if (!sensorValueUsable(state.sample))
-            {
-                // Called under the runtime mutex: capture only, never print here.
-                sensorReadFailure.pending = true;
-                sensorReadFailure.index = index;
-                sensorReadFailure.at = millis();
-                sensorReadFailure.sample = state.sample;
-            }
-#endif
             return sensorValueUsable(state.sample);
         }
         void set(int index, bool on) override { setDeviceOutput(index, on); }
@@ -71,6 +66,40 @@ namespace
     uint32_t stopRequestedAt = 0;
     ProgramDiagnostics diagnostics;
 #endif
+#ifdef SENSOR_DIAGNOSTICS
+    // Under the runtime mutex: capture only, never print here.
+    void captureSensorWait(const char *event, uint32_t runId, const char *deviceId, const char *blockId)
+    {
+        const int index = deviceIndexOf(deviceId);
+        if (index < 0 || sensorWaitEventCount == sizeof(sensorWaitEvents) / sizeof(sensorWaitEvents[0]))
+            return;
+        SensorWaitEvent &captured = sensorWaitEvents[sensorWaitEventCount++];
+        captured = SensorWaitEvent{};
+        captured.event = event;
+        captured.index = index;
+        captured.at = millis();
+        captured.sample = deviceState(index).sample;
+        captured.runId = runId;
+        strcpy(captured.blockId, blockId);
+    }
+#endif
+    // Under the runtime mutex. node is the sensor the engine waits on, or nullptr.
+    // ended says how the previous wait ended: "resume" (a usable value was read) or "stop".
+    void updateSensorWait(const program::Node *node, const char *ended)
+    {
+        const char *deviceId = node ? deviceDescriptor(node->device).id : nullptr;
+#ifdef SENSOR_DIAGNOSTICS
+        const auto before = lifecycle.snapshot();
+#endif
+        if (!lifecycle.setWaiting(deviceId, node ? node->blockId : nullptr))
+            return;
+#ifdef SENSOR_DIAGNOSTICS
+        if (before.waiting.deviceId)
+            captureSensorWait(ended, before.runId, before.waiting.deviceId, before.waiting.blockId);
+        if (deviceId)
+            captureSensorWait("wait", before.runId, deviceId, node->blockId);
+#endif
+    }
 }
 void initProgramRuntime()
 {
@@ -145,6 +174,7 @@ void tickProgram()
 #endif
         pending.reset();
         active.reset();
+        updateSensorWait(nullptr, "stop");
         lifecycle.finish(program::EngineState::Stopped, program::Error{});
         return;
     }
@@ -156,42 +186,47 @@ void tickProgram()
     if (!active)
         return;
     engine.tick();
-    if (engine.state() != program::EngineState::Running)
+    if (engine.state() == program::EngineState::Running)
     {
-        lifecycle.finish(engine.state(), engine.error());
-#ifdef SENSOR_DIAGNOSTICS
-        if (sensorReadFailure.pending)
-            sensorReadFailure.run = lifecycle.snapshot();
-#endif
-        active.reset();
+        updateSensorWait(engine.sensorWait(), "resume");
+        return;
     }
+    // A wait can end in the same tick as the run, after the value was read.
+    updateSensorWait(nullptr, engine.state() == program::EngineState::Stopped ? "stop" : "resume");
+    lifecycle.finish(engine.state(), engine.error());
+    active.reset();
 }
 #ifdef SENSOR_DIAGNOSTICS
-void publishSensorReadFailure()
+void publishSensorWait()
 {
-    SensorReadFailure failure;
+    SensorWaitEvent events[sizeof(sensorWaitEvents) / sizeof(sensorWaitEvents[0])];
+    uint8_t count;
     {
         Lock lock;
-        if (!sensorReadFailure.pending)
-            return;
-        failure = sensorReadFailure;
-        sensorReadFailure.pending = false;
+        count = sensorWaitEventCount;
+        for (uint8_t i = 0; i < count; ++i)
+            events[i] = sensorWaitEvents[i];
+        sensorWaitEventCount = 0;
     }
     // Run from loop immediately after tick, outside runtime/device locks.
-    JsonDocument doc;
-    doc["ts"] = failure.at;
-    doc["bootId"] = programBootId();
-    doc["sensor"] = deviceDescriptor(failure.index).id;
-    doc["runId"] = failure.run.runId;
-    doc["blockId"] = JsonString(failure.run.error.blockId, false);
-    doc["error"] = failure.run.error.code;
-    doc["status"] = sensorStatusName(failure.sample.status);
-    doc["sampleUpdatedAtMs"] = failure.sample.updatedAt;
-    doc["sampleAgeMs"] = uint32_t(failure.at - failure.sample.updatedAt);
-    // Stored value is diagnostic only, not a valid reading on this path.
-    doc["storedValue"] = failure.sample.value;
-    Serial.print("SENSOR_RUNTIME ");
-    serializeJson(doc, Serial);
-    Serial.println();
+    for (uint8_t i = 0; i < count; ++i)
+    {
+        const SensorWaitEvent &event = events[i];
+        JsonDocument doc;
+        doc["ts"] = event.at;
+        doc["bootId"] = programBootId();
+        doc["event"] = event.event;
+        doc["sensor"] = deviceDescriptor(event.index).id;
+        doc["runId"] = event.runId;
+        doc["blockId"] = JsonString(event.blockId, false);
+        doc["status"] = sensorStatusName(event.sample.status);
+        doc["sampleUpdatedAtMs"] = event.sample.updatedAt;
+        doc["sampleAgeMs"] = uint32_t(event.at - event.sample.updatedAt);
+        // On "wait" the stored value is diagnostic only, not a valid reading.
+        doc["storedValue"] = event.sample.value;
+        Serial.print("SENSOR_RUNTIME ");
+        serializeJson(doc, Serial);
+        Serial.println();
+    }
 }
 #endif

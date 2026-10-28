@@ -63,16 +63,16 @@ void Engine::compileBody(uint16_t first) {
 }
 void Engine::start(const Program &program) {
     program_ = &program; codeSize_ = pc_ = valueSize_ = repeatSize_ = steps_ = 0;
-    waiting_ = false; error_ = Error{}; state_ = EngineState::Running;
+    waiting_ = false; sensorWait_ = NONE; error_ = Error{}; state_ = EngineState::Running;
     devices_.allOff(); compileBody(program.first);
 }
 void Engine::stop() {
-    waiting_ = false; devices_.allOff(); state_ = EngineState::Stopped;
+    waiting_ = false; sensorWait_ = NONE; devices_.allOff(); state_ = EngineState::Stopped;
 }
 void Engine::fail(const char *code, const char *message, uint16_t node) {
     error_ = Error{}; error_.code = code; error_.message = message;
     if (program_ && node < program_->size) strcpy(error_.blockId, program_->nodes[node].blockId);
-    waiting_ = false; devices_.allOff(); state_ = EngineState::Error;
+    waiting_ = false; sensorWait_ = NONE; devices_.allOff(); state_ = EngineState::Error;
 }
 void Engine::execute(const Instruction &instruction) {
     const Node &n = program_->nodes[instruction.node];
@@ -80,8 +80,11 @@ void Engine::execute(const Instruction &instruction) {
     case Code::Value: {
         double value = n.value;
         if (n.kind == Kind::Sensor && (!devices_.read(n.device, value) || !std::isfinite(value))) {
-            fail("sensor_unavailable", "センサの有効な値を取得できません。", instruction.node); return;
+            // Stay on this instruction with outputs held and read again on the next tick.
+            // Nothing has been pushed, so the expression resumes intact (ADR 0011).
+            sensorWait_ = instruction.node; return;
         }
+        sensorWait_ = NONE;
         values_[valueSize_++] = value; ++pc_; break;
     }
     case Code::Unary: values_[valueSize_ - 1] = !values_[valueSize_ - 1]; ++pc_; break;
@@ -144,8 +147,8 @@ void Engine::tick() {
         if (stopRequested_ && stopRequested_(context_)) { stop(); return; }
         if (pc_ == codeSize_) { state_ = EngineState::Completed; return; }
         ++steps_; execute(code_[pc_]);
-        // Even wait(0) yields to the next tick.
-        if (state_ != EngineState::Running || waiting_) return;
+        // Even wait(0) yields to the next tick, as does a sensor wait.
+        if (state_ != EngineState::Running || waiting_ || sensorWait_ != NONE) return;
     }
 }
 }

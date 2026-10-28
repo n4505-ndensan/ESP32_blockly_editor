@@ -12,6 +12,7 @@
 #include <devices/distance_sample.h>
 #include <devices/device_settings.h>
 #include <program_fixtures.h>
+#include <cstdio>
 #include <cstring>
 #include <memory>
 
@@ -147,15 +148,36 @@ static void test_short_circuit_does_not_read_bad_sensor()
     TEST_ASSERT_EQUAL(0, devices.reads);
     TEST_ASSERT_EQUAL((int)EngineState::Completed, (int)engine->state());
 }
-static void test_sensor_failure_stops_and_reports_source()
+static void test_sensor_failure_waits_and_resumes()
 {
     devices.valid = false;
     load("if_else");
+    devices.on = true; // Set after start's allOff to observe that waiting keeps outputs.
+    tickUntilDone(10);
+    TEST_ASSERT_EQUAL((int)EngineState::Running, (int)engine->state());
+    TEST_ASSERT_NOT_NULL(engine->sensorWait());
+    TEST_ASSERT_EQUAL_STRING("distance", engine->sensorWait()->blockId);
+    TEST_ASSERT_EQUAL(10, devices.reads); // One read per tick, then yields.
+    TEST_ASSERT_TRUE(devices.on);
+    TEST_ASSERT_EQUAL(1, devices.offs);
+    TEST_ASSERT_EQUAL(0, devices.writes);
+    devices.valid = true;
+    devices.sensor = 300;
     tickUntilDone();
-    TEST_ASSERT_EQUAL((int)EngineState::Error, (int)engine->state());
-    TEST_ASSERT_EQUAL_STRING("sensor_unavailable", engine->error().code);
-    TEST_ASSERT_EQUAL_STRING("distance", engine->error().blockId);
-    TEST_ASSERT_FALSE(devices.on);
+    TEST_ASSERT_EQUAL((int)EngineState::Completed, (int)engine->state());
+    TEST_ASSERT_NULL(engine->sensorWait());
+    TEST_ASSERT_FALSE(devices.on); // The else branch ran with the recovered value.
+}
+static void test_stop_while_waiting_for_sensor()
+{
+    devices.valid = false;
+    load("if_else");
+    engine->tick();
+    TEST_ASSERT_NOT_NULL(engine->sensorWait());
+    stopped = true;
+    engine->tick();
+    TEST_ASSERT_EQUAL((int)EngineState::Stopped, (int)engine->state());
+    TEST_ASSERT_NULL(engine->sensorWait());
     TEST_ASSERT_EQUAL(2, devices.offs);
 }
 static void test_arithmetic_failure()
@@ -244,6 +266,25 @@ static void test_start_stop_admission()
     life.finish(EngineState::Completed, Error{});
     TEST_ASSERT_EQUAL((int)RunStatus::Completed, (int)life.snapshot().state);
 }
+static void test_waiting_sensor_revisions_and_clears()
+{
+    Lifecycle life;
+    TEST_ASSERT_TRUE(life.acceptStart());
+    TEST_ASSERT_TRUE(life.markRunning());
+    const auto revision = life.snapshot().revision;
+    TEST_ASSERT_FALSE(life.setWaiting(nullptr, nullptr));
+    TEST_ASSERT_TRUE(life.setWaiting("distance", "d"));
+    TEST_ASSERT_EQUAL(revision + 1, life.snapshot().revision);
+    TEST_ASSERT_FALSE(life.setWaiting("distance", "d"));
+    TEST_ASSERT_TRUE(life.setWaiting("distance", "d2"));
+    TEST_ASSERT_TRUE(life.setWaiting(nullptr, nullptr));
+    TEST_ASSERT_NULL(life.snapshot().waiting.deviceId);
+    TEST_ASSERT_TRUE(life.setWaiting("distance", "d"));
+    life.requestStop();
+    life.finish(EngineState::Stopped, Error{});
+    TEST_ASSERT_NULL(life.snapshot().waiting.deviceId);
+    TEST_ASSERT_EQUAL_STRING("", life.snapshot().waiting.blockId);
+}
 static void test_stop_cancels_a_partially_received_run()
 {
     Lifecycle life;
@@ -301,6 +342,22 @@ static void test_state_json_serializes_after_snapshot_destruction()
     TEST_ASSERT_EQUAL_STRING("divide", decoded["error"]["blockId"].as<const char *>());
     writeState(doc.to<JsonVariant>(), "test-boot", RunSnapshot{});
     TEST_ASSERT_TRUE(doc["error"].isNull());
+    TEST_ASSERT_TRUE(doc["waiting"].isNull());
+}
+static void test_state_json_owns_waiting_sensor()
+{
+    JsonDocument doc;
+    {
+        RunSnapshot snapshot;
+        snapshot.state = RunStatus::Running;
+        snapshot.waiting.deviceId = "distance";
+        strcpy(snapshot.waiting.blockId, "sensor");
+        writeState(doc.to<JsonVariant>(), "test-boot", snapshot);
+        memset(snapshot.waiting.blockId, 'x', 6);
+    }
+    TEST_ASSERT_TRUE(doc["error"].isNull());
+    TEST_ASSERT_EQUAL_STRING("distance", doc["waiting"]["deviceId"].as<const char *>());
+    TEST_ASSERT_EQUAL_STRING("sensor", doc["waiting"]["blockId"].as<const char *>());
 }
 static void test_failure_json_owns_diagnostics()
 {
@@ -358,28 +415,28 @@ static void test_sensor_diagnostic_log_clock_wrap()
 static void test_distance_holds_only_previous_good_value()
 {
     SensorSample sample{74, 100, SensorStatus::Ok};
-    sample = updateDistanceSample(sample, DistanceReadResult::TransientFailure, 1900, 200);
+    sample = updateDistanceSample(sample, DistanceReadResult::TransientFailure, SensorReason::NoTarget, 1900, 200);
     TEST_ASSERT_EQUAL((int)SensorStatus::Held, (int)sample.status);
     TEST_ASSERT_EQUAL_FLOAT(74, sample.value);
     TEST_ASSERT_EQUAL(100, sample.updatedAt);
     TEST_ASSERT_TRUE(sensorValueUsable(sample));
-    sample = updateDistanceSample(sample, DistanceReadResult::TransientFailure, 222, 1099);
+    sample = updateDistanceSample(sample, DistanceReadResult::TransientFailure, SensorReason::NoTarget, 222, 1099);
     TEST_ASSERT_EQUAL((int)SensorStatus::Held, (int)sample.status);
     TEST_ASSERT_EQUAL(100, sample.updatedAt);
-    sample = updateDistanceSample(sample, DistanceReadResult::NoData, 0, 1100);
+    sample = updateDistanceSample(sample, DistanceReadResult::NoData, SensorReason::None, 0, 1100);
     TEST_ASSERT_EQUAL((int)SensorStatus::Stale, (int)sample.status);
     TEST_ASSERT_FALSE(sensorValueUsable(sample));
 }
 static void test_distance_failure_never_invents_or_resurrects_value()
 {
-    auto empty = updateDistanceSample(SensorSample{}, DistanceReadResult::TransientFailure, 5, 100);
+    auto empty = updateDistanceSample(SensorSample{}, DistanceReadResult::TransientFailure, SensorReason::NoTarget, 5, 100);
     TEST_ASSERT_EQUAL((int)SensorStatus::Unavailable, (int)empty.status);
     SensorSample sample{50, 100, SensorStatus::Ok};
-    sample = updateDistanceSample(sample, DistanceReadResult::FatalFailure, 0, 200);
+    sample = updateDistanceSample(sample, DistanceReadResult::FatalFailure, SensorReason::SensorFault, 0, 200);
     TEST_ASSERT_EQUAL((int)SensorStatus::Unavailable, (int)sample.status);
-    sample = updateDistanceSample(sample, DistanceReadResult::TransientFailure, 300, 300);
+    sample = updateDistanceSample(sample, DistanceReadResult::TransientFailure, SensorReason::NoTarget, 300, 300);
     TEST_ASSERT_EQUAL((int)SensorStatus::Unavailable, (int)sample.status);
-    sample = updateDistanceSample(sample, DistanceReadResult::Valid, 90, 400);
+    sample = updateDistanceSample(sample, DistanceReadResult::Valid, SensorReason::None, 90, 400);
     TEST_ASSERT_EQUAL((int)SensorStatus::Ok, (int)sample.status);
     TEST_ASSERT_EQUAL_FLOAT(90, sample.value);
     TEST_ASSERT_EQUAL(400, sample.updatedAt);
@@ -387,7 +444,7 @@ static void test_distance_failure_never_invents_or_resurrects_value()
 static void test_distance_held_clock_wrap_and_notifications()
 {
     SensorSample good{10, 0xffffff00, SensorStatus::Ok};
-    const auto held = updateDistanceSample(good, DistanceReadResult::TransientFailure, 0, uint32_t(good.updatedAt + 999));
+    const auto held = updateDistanceSample(good, DistanceReadResult::TransientFailure, SensorReason::NoTarget, 0, uint32_t(good.updatedAt + 999));
     TEST_ASSERT_TRUE(sensorValueUsable(held));
     TEST_ASSERT_TRUE(sensorChanged(good, held, 1));
     TEST_ASSERT_TRUE(sensorChanged(held, good, 1));
@@ -396,7 +453,7 @@ static void test_distance_held_clock_wrap_and_notifications()
     TEST_ASSERT_EQUAL((int)SensorStatus::Stale, (int)stale.status);
     TEST_ASSERT_TRUE(sensorChanged(held, stale, 1));
 }
-static void test_engine_uses_held_value_and_stops_at_expiry()
+static void test_engine_uses_held_value_and_waits_at_expiry()
 {
     struct SampleDevices : FakeDevices
     {
@@ -416,17 +473,117 @@ static void test_engine_uses_held_value_and_stops_at_expiry()
     TEST_ASSERT_TRUE(validate(doc.as<JsonVariantConst>(), hardware, *compiled, error));
     engine.reset(new Engine(hardware, clockSource, shouldStop, nullptr));
     engine->start(*compiled);
-    hardware.sample = updateDistanceSample(hardware.sample, DistanceReadResult::TransientFailure, 3000, 999);
+    hardware.sample = updateDistanceSample(hardware.sample, DistanceReadResult::TransientFailure, SensorReason::NoTarget, 3000, 999);
     hardware.now = 999;
     engine->tick();
     TEST_ASSERT_TRUE(hardware.on);
     TEST_ASSERT_EQUAL((int)EngineState::Running, (int)engine->state());
     hardware.now = 1000;
     engine->tick();
-    TEST_ASSERT_EQUAL((int)EngineState::Error, (int)engine->state());
-    TEST_ASSERT_EQUAL_STRING("distance", engine->error().blockId);
-    TEST_ASSERT_FALSE(hardware.on);
+    TEST_ASSERT_EQUAL((int)EngineState::Running, (int)engine->state());
+    TEST_ASSERT_NOT_NULL(engine->sensorWait());
+    TEST_ASSERT_TRUE(hardware.on);
+    hardware.sample = updateDistanceSample(hardware.sample, DistanceReadResult::Valid, SensorReason::None, 50, 1100);
+    hardware.now = 1100;
+    engine->tick();
+    TEST_ASSERT_EQUAL((int)EngineState::Running, (int)engine->state());
+    TEST_ASSERT_NULL(engine->sensorWait());
     engine.reset(); // Hardware lifetime must exceed the engine's lifetime.
+}
+static void assertClassified(const DistanceMeasurement &measurement, DistanceReadResult result, SensorReason reason)
+{
+    char message[48];
+    snprintf(message, sizeof(message), "range status %d, i2c %d", (int)measurement.rangeStatus, (int)measurement.i2cStatus);
+    const auto classification = classifyDistance(measurement);
+    TEST_ASSERT_EQUAL_INT_MESSAGE((int)result, (int)classification.result, message);
+    TEST_ASSERT_EQUAL_INT_MESSAGE((int)reason, (int)classification.reason, message);
+}
+static void test_distance_classification_table()
+{
+    struct Row
+    {
+        DistanceRangeStatus status;
+        DistanceReadResult result;
+        SensorReason reason;
+    };
+    const Row rows[] = {
+        {DistanceRangeStatus::RangeValid, DistanceReadResult::Valid, SensorReason::None},
+        {DistanceRangeStatus::RangeValidMinRangeClipped, DistanceReadResult::Valid, SensorReason::None},
+        {DistanceRangeStatus::RangeValidNoWrapCheckFail, DistanceReadResult::Valid, SensorReason::None},
+        {DistanceRangeStatus::SignalFail, DistanceReadResult::TransientFailure, SensorReason::NoTarget},
+        {DistanceRangeStatus::WrapTargetFail, DistanceReadResult::TransientFailure, SensorReason::NoTarget},
+        {DistanceRangeStatus::SigmaFail, DistanceReadResult::FatalFailure, SensorReason::NoTarget},
+        {DistanceRangeStatus::OutOfBoundsFail, DistanceReadResult::FatalFailure, SensorReason::NoTarget},
+        {DistanceRangeStatus::XtalkSignalFail, DistanceReadResult::FatalFailure, SensorReason::NoTarget},
+        {DistanceRangeStatus::HardwareFail, DistanceReadResult::FatalFailure, SensorReason::SensorFault},
+        {DistanceRangeStatus::MinRangeFail, DistanceReadResult::FatalFailure, SensorReason::SensorFault},
+        {DistanceRangeStatus::SynchronizationInt, DistanceReadResult::FatalFailure, SensorReason::SensorFault},
+        {DistanceRangeStatus::None, DistanceReadResult::FatalFailure, SensorReason::SensorFault},
+    };
+    for (const Row &row : rows)
+    {
+        assertClassified({0, row.status, 120, 1.5f, 0.25f}, row.result, row.reason);
+        // A failed final write is no communication, whatever the range status says.
+        assertClassified({2, row.status, 120, 1.5f, 0.25f}, DistanceReadResult::FatalFailure, SensorReason::Disconnected);
+    }
+}
+static void test_distance_failed_read_signature()
+{
+    const float failedRate = 0xFFFF / 128.0f;
+    const DistanceMeasurement failed{0, DistanceRangeStatus::None, 64351, failedRate, failedRate};
+    TEST_ASSERT_TRUE(distanceReadFailed(failed));
+    assertClassified(failed, DistanceReadResult::FatalFailure, SensorReason::Disconnected);
+    // "No update" with any byte that was actually received is a sensor fault.
+    DistanceMeasurement plain = failed;
+    plain.rangeMm = 64350;
+    assertClassified(plain, DistanceReadResult::FatalFailure, SensorReason::SensorFault);
+    plain = failed;
+    plain.signalMcps = 1.5f;
+    assertClassified(plain, DistanceReadResult::FatalFailure, SensorReason::SensorFault);
+    plain = failed;
+    plain.ambientMcps = 0.25f;
+    assertClassified(plain, DistanceReadResult::FatalFailure, SensorReason::SensorFault);
+}
+static void test_distance_reason_carries_from_held_to_stale()
+{
+    SensorSample sample{74, 100, SensorStatus::Ok};
+    TEST_ASSERT_EQUAL((int)SensorReason::None, (int)sample.reason);
+    sample = updateDistanceSample(sample, DistanceReadResult::TransientFailure, SensorReason::NoTarget, 0, 200);
+    TEST_ASSERT_EQUAL((int)SensorStatus::Held, (int)sample.status);
+    TEST_ASSERT_EQUAL((int)SensorReason::NoTarget, (int)sample.reason);
+    sample = freshSample(sample, 1100);
+    TEST_ASSERT_EQUAL((int)SensorStatus::Stale, (int)sample.status);
+    TEST_ASSERT_EQUAL((int)SensorReason::NoTarget, (int)sample.reason);
+    // A later failure replaces the reason without reviving the value.
+    sample = updateDistanceSample(sample, DistanceReadResult::FatalFailure, SensorReason::Disconnected, 0, 1200);
+    TEST_ASSERT_EQUAL((int)SensorStatus::Unavailable, (int)sample.status);
+    TEST_ASSERT_EQUAL((int)SensorReason::Disconnected, (int)sample.reason);
+    sample = updateDistanceSample(sample, DistanceReadResult::TransientFailure, SensorReason::NoTarget, 0, 1300);
+    TEST_ASSERT_EQUAL((int)SensorStatus::Unavailable, (int)sample.status);
+    TEST_ASSERT_EQUAL((int)SensorReason::NoTarget, (int)sample.reason);
+    sample = updateDistanceSample(sample, DistanceReadResult::Valid, SensorReason::None, 80, 1400);
+    TEST_ASSERT_EQUAL((int)SensorStatus::Ok, (int)sample.status);
+    TEST_ASSERT_EQUAL((int)SensorReason::None, (int)sample.reason);
+}
+static void test_sensor_changed_on_reason()
+{
+    const SensorSample noTarget{0, 0, SensorStatus::Unavailable, SensorReason::NoTarget};
+    SensorSample disconnected = noTarget;
+    disconnected.reason = SensorReason::Disconnected;
+    TEST_ASSERT_FALSE(sensorChanged(noTarget, noTarget, 1));
+    TEST_ASSERT_TRUE(sensorChanged(noTarget, disconnected, 1));
+    TEST_ASSERT_EQUAL_STRING("no_target", sensorReasonName(noTarget.reason));
+    TEST_ASSERT_EQUAL_STRING("disconnected", sensorReasonName(disconnected.reason));
+}
+static void test_sensor_no_data_without_failure()
+{
+    // Initialized, before the first measurement.
+    TEST_ASSERT_EQUAL((int)SensorReason::NoData, (int)SensorSample{}.reason);
+    // An ok value that aged without a failure.
+    const auto stale = freshSample(SensorSample{20, 0, SensorStatus::Ok}, 1000);
+    TEST_ASSERT_EQUAL((int)SensorStatus::Stale, (int)stale.status);
+    TEST_ASSERT_EQUAL_STRING("no_data", sensorReasonName(stale.reason));
+    TEST_ASSERT_NULL(sensorReasonName(SensorReason::None));
 }
 // 部品リストの規則。画面側（frontend/tests/settings.test.ts）と同じ判定を確かめる。
 #define KIT_PARTS R"({"id":"led_red","type":"led","label":"赤色LED","pins":[5]},{"id":"temperature","type":"thermo","label":"温度","pins":[21,22]},{"id":"distance","type":"tof","label":"距離","pins":[21,22]})"
@@ -496,7 +653,8 @@ int runTests()
     RUN_TEST(test_completion_keeps_output);
     RUN_TEST(test_repeat);
     RUN_TEST(test_short_circuit_does_not_read_bad_sensor);
-    RUN_TEST(test_sensor_failure_stops_and_reports_source);
+    RUN_TEST(test_sensor_failure_waits_and_resumes);
+    RUN_TEST(test_stop_while_waiting_for_sensor);
     RUN_TEST(test_arithmetic_failure);
     RUN_TEST(test_empty_forever_budget_and_stop);
     RUN_TEST(test_stop_while_waiting);
@@ -505,10 +663,12 @@ int runTests()
     RUN_TEST(test_until);
     RUN_TEST(test_sensor_freshness_and_epsilon);
     RUN_TEST(test_start_stop_admission);
+    RUN_TEST(test_waiting_sensor_revisions_and_clears);
     RUN_TEST(test_stop_cancels_a_partially_received_run);
     RUN_TEST(test_strict_json_input);
     RUN_TEST(test_state_json_owns_error_block_id);
     RUN_TEST(test_state_json_serializes_after_snapshot_destruction);
+    RUN_TEST(test_state_json_owns_waiting_sensor);
     RUN_TEST(test_failure_json_owns_diagnostics);
     RUN_TEST(test_sensor_diagnostic_history);
     RUN_TEST(test_sensor_diagnostic_log_transitions);
@@ -516,7 +676,12 @@ int runTests()
     RUN_TEST(test_distance_holds_only_previous_good_value);
     RUN_TEST(test_distance_failure_never_invents_or_resurrects_value);
     RUN_TEST(test_distance_held_clock_wrap_and_notifications);
-    RUN_TEST(test_engine_uses_held_value_and_stops_at_expiry);
+    RUN_TEST(test_engine_uses_held_value_and_waits_at_expiry);
+    RUN_TEST(test_distance_classification_table);
+    RUN_TEST(test_distance_failed_read_signature);
+    RUN_TEST(test_distance_reason_carries_from_held_to_stale);
+    RUN_TEST(test_sensor_changed_on_reason);
+    RUN_TEST(test_sensor_no_data_without_failure);
     RUN_TEST(test_default_part_list_round_trips);
     RUN_TEST(test_part_list_rules);
     return UNITY_END();

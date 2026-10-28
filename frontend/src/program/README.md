@@ -15,8 +15,9 @@ JSONは`{version:1,body:Statement[]}`。全ノードに`blockId`を付ける。
 編集は実行中も可能だが、変更は次回RUNから有効。保存・復元は行わない。
 
 センサ式は`ok`・`held`の数値を通常どおり評価する。保持中に一時中断したり式をスキップしたりしない。
-次に参照した時点で`stale`・`unavailable`なら、そのブロックで実行エラーとなり全出力をOFFにする。
-未使用・短絡評価で読まないセンサの異常だけでは停止しない。
+A sensor expression that reads `stale` or `unavailable` waits at that block with outputs held until the value is usable again.
+The run state's `waiting` names the sensor and block; see [ADR 0011](../../../adr/0011-wait-for-sensor-and-reconnect.md).
+Sensors that are not read, including those skipped by short-circuit evaluation, never cause a wait.
 保持の条件と正常取得から1秒の期限は[ADR 0008](../../../adr/0008-held-distance-value.md)を参照。
 
 Vitestを先行させて実装する。`pnpm test`で実行、`pnpm test:watch`で監視する。

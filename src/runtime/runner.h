@@ -14,7 +14,7 @@ bool setManualDeviceOutput(size_t index, bool on, DeviceSnapshot &confirmed);
 void tickProgram();
 
 #ifdef SENSOR_DIAGNOSTICS
-void publishSensorReadFailure();
+void publishSensorWait();
 #endif
 
 #ifdef PROGRAM_DIAGNOSTICS

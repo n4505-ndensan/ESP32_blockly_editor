@@ -29,10 +29,14 @@ AST実行を始めると部品はプログラム側から動くが、変化は�
 接続が切れたときはセンサ値を消して接続状態を表示する。ダミー値へ切り替えることはない。
 出力の状態は、再接続時にESP32が送るスナップショットで揃う。
 カタログ取得後にSSEを開始し、devices・program両方のスナップショットを待つ。
-センサ状態は`{value:number|null,status:"ok"|"held"|"unavailable"|"stale"}`。
+センサ状態は`{value:number|null,status:"ok"|"held"|"unavailable"|"stale",reason}`。
 `ok`は正常値、`held`は利用可能な直近正常値で、どちらもAPIのvalueは数値。
 `sensorPresentation.ts`で表示を変換し、`held`は`ok`と同じく数値・単位を表示する。
 `unavailable`・`stale`は`value:null`で、画面は`--`と理由を表示する。
+`reason` is a device-independent category (`no_target`, `sensor_fault`, `disconnected`, `no_data`) chosen by the firmware,
+and null while the value is usable ([ADR 0012](../../../adr/0012-sensor-failure-reasons.md)).
+The screen only maps it to text; without it, the caption falls back to the status.
+The top bar's wait message reads the waiting sensor's `reason` from `deviceStore` and shows `disconnected` and `sensor_fault` as errors.
 保持・鮮度の判定はESP32で行い、ブラウザでは過去値の保持や期限延長をしない。
 距離のWrapTargetFail・SignalFailだけが保持対象で、期限は最後の正常取得から1000ms未満。
 他の異常やI2C異常による即時無効化後は、新規正常測定まで復旧しない。
@@ -44,4 +48,4 @@ AST実行を始めると部品はプログラム側から動くが、変化は�
 
 通信仕様は[adr/0001](../../../adr/0001-device-state-and-control.md)、
 センサ有効性は[adr/0007](../../../adr/0007-sensor-validity.md)と
-[adr/0008](../../../adr/0008-held-distance-value.md)を参照。
+[adr/0008](../../../adr/0008-held-distance-value.md)、無効の理由は[adr/0012](../../../adr/0012-sensor-failure-reasons.md)を参照。

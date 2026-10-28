@@ -115,4 +115,14 @@ describe("program client", () => {
     expect(fetcher.mock.calls[0][0]).toBe("/api/program/stop");
     expect(client.state?.state).toBe("stopping");
   });
+  it("accepts a sensor wait and rejects a malformed one", () => {
+    const client = new ProgramClient(vi.fn<typeof fetch>());
+    const waiting = { deviceId: "distance", blockId: "sensor" };
+    client.observe({ ...state(1), waiting });
+    expect(client.state?.waiting).toEqual(waiting);
+    client.observe({ ...state(2), waiting: { deviceId: "distance" } });
+    expect(client.state?.revision).toBe(1);
+    client.observe({ ...state(3), waiting: null });
+    expect(client.state?.waiting).toBeNull();
+  });
 });

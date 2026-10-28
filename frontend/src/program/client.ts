@@ -22,7 +22,10 @@ export function isProgramState(value: unknown): value is ProgramState {
     ].includes(s.state) &&
     (s.error === null ||
       (typeof s.error?.code === "string" &&
-        typeof s.error.message === "string"))
+        typeof s.error.message === "string")) &&
+    (s.waiting == null ||
+      (typeof s.waiting.deviceId === "string" &&
+        typeof s.waiting.blockId === "string"))
   );
 }
 

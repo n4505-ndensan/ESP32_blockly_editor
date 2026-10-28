@@ -20,6 +20,13 @@ namespace program
         }
         else
             root["error"] = nullptr;
+        if (snapshot.waiting.deviceId)
+        {
+            root["waiting"]["deviceId"] = JsonString(snapshot.waiting.deviceId, false);
+            root["waiting"]["blockId"] = JsonString(snapshot.waiting.blockId, false);
+        }
+        else
+            root["waiting"] = nullptr;
     }
     inline void writeFailure(JsonVariant root, const char *code, const char *message, const char *blockId = nullptr)
     {

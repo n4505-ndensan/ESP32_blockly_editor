@@ -8,7 +8,7 @@
 開始は全出力OFF、正常終了は保持、停止・エラーは全出力OFF。起動時の部品初期化は呼び直さない。
 出力は既存のsetDeviceOutput()を通り、devicesイベントで通知される。
 
-仕様と理由はADR 0005・0006・0007、テストデータは`shared/program-fixtures.json`を参照。
+仕様と理由はADR 0005・0006・0007・0011、テストデータは`shared/program-fixtures.json`を参照。
 
 ```
 pio test -e runtime_test
