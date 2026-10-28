@@ -1,6 +1,6 @@
 # ADR 0011: Wait for an unusable sensor and reconnect it
 
-- Status: Accepted
+- Status: Partially replaced by [ADR 0012](0012-sensor-failure-reasons.md) (failed reads, wait message)
 - Date: 2026-10-28
 - Replaces the parts of [ADR 0007](0007-sensor-validity.md) and [ADR 0008](0008-held-distance-value.md)
   that end a run when a sensor expression reads an unusable value, and the parts of

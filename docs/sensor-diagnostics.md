@@ -18,8 +18,11 @@ Since [ADR 0011](../adr/0011-wait-for-sensor-and-reconnect.md), reading an inval
 | --- | --- | --- |
 | ok | 数値 | 正常取得した利用可能な値 |
 | held | 数値（okと同じ表示） | 距離のWrapTargetFail・SignalFail時に利用可能な直近正常値を使用 |
-| unavailable | null・`--`と「取得できません」 | 未取得、他の測距異常、検出したI2C異常などで利用不可 |
-| stale | null・`--`と「値が更新されていません」 | 最後の正常取得から1000ms以上経過 |
+| unavailable | null・`--`と`reason`の説明 | 未取得、他の測距異常、検出したI2C異常などで利用不可 |
+| stale | null・`--`と`reason`の説明 | 最後の正常取得から1000ms以上経過 |
+
+`unavailable` and `stale` carry `reason` (`no_target`, `sensor_fault`, `disconnected`, `no_data`); see [ADR 0012](../adr/0012-sensor-failure-reasons.md) for the mapping from VL53L1X statuses.
+A `stale` value keeps the reason of the failure before it, or `no_data` if there was none.
 
 `held`は最後の正常取得から1000ms未満に限ります。保存値・正常取得時刻は更新せず、
 失敗が続いても期限は延長しません。1000msちょうどで`stale`になります。
@@ -35,7 +38,7 @@ A sensor that delivers no measurement for 1000 ms is initialized again.
 ## ログの種類
 
 - `SENSOR_CONFIG`：起動時の初期化結果、モード、測定予算、周期、I2C設定。
-- `SENSOR`：距離センサの状態変化、測距ステータス、信号・外光強度、最後の正常取得からの時間、失敗数。
+- `SENSOR`：距離センサの状態変化、測距ステータス、信号・外光強度、最後の正常取得からの時間、失敗数、published reason (`category`).
 - `SENSOR_RUNTIME`: each change of the run state's `waiting`, with sensor, runId, blockId, status, sample time and stored value.
   `event` is `wait` when a program starts waiting for a sensor, `resume` when it has read a usable value, and `stop` when STOP ended the wait.
   When one tick ends a wait and starts another, both are logged in that order.
@@ -53,13 +56,16 @@ A sensor that delivers no measurement for 1000 ms is initialized again.
 | not_initialized | 初期化失敗 |
 | data_ready_i2c | dataReady()直後のlast_statusが非0 |
 | read_final_i2c | read(false)の最後のI2C書き込み結果が非0 |
+| read_results_i2c | Results read failed: every result byte was `0xFF` (ADR 0012) |
 | range_status | 通信の最終ステータスは0だが新規測定を正常と認めなかった。利用可否はstatusも確認 |
 | stale | 最後の正常値が1秒以上更新されなかった |
 
 `rangeStatusName`でsignal fail、sigma fail等を区別できます。
+`SENSOR.category` is the `reason` the API publishes for the stored sample, or null while it is usable.
 `reason`は測定失敗の理由、`status`は保存値の利用可否です。測距失敗のログだけでプログラムが待つと判断せず、
 `held`か無効状態か、および`lastGoodAgeMs`を合わせて確認してください。
-ただし、Pololuライブラリの`last_status`は最後の書き込み結果だけです。中間の通信失敗や受信バイト不足を検出できるログではありません。
+ただし、Pololuライブラリの`last_status`は最後の書き込み結果だけです。
+A failed results read is detected by its `0xFF` signature instead (`read_results_i2c`); a failed `dataReady()` read is not detected and reads as "not ready".
 `range_status`だった場合も光学的な測定不成立と断定せず、必要に応じてライブラリ内部を追加計測します。
 
 `readAttempted=false`の行では測定結果を新たに読んでおらず、rangeStatusはnullです。
@@ -75,6 +81,8 @@ consecutiveFailuresは測定読出し・dataReady通信で失敗した回数で�
 3. 元の「距離<100mm、温度>30℃、0.5秒待機」のプログラムを実行します。
 4. 白い平面を5〜10cmに固定、前後移動、対象物を外す、の条件を別々に試します。近距離測定の限界確認は別試験とし、センサを覆い隠さない条件から始めます。
 5. heldへの遷移、期限切れまたは即時無効化、待ち開始直前のSENSOR、SENSOR_RUNTIME（wait・resume・stop）、正常取得による復帰後のSENSORと、動かした対象物・照明条件を記録します。
+6. Check the reasons: an empty field of view shows `no_target` and pauses the program; unplugging shows `disconnected` with `SENSOR_RECONNECT` lines; replugging resumes the program.
+   Compare `SENSOR.category` with the screen. This needs both firmware (`upload`) and web assets (`uploadfs`).
 
 許容対象の失敗が繰り返されてもlastGoodAgeMsがリセットされないこと、1000msでstaleとなること、
 I2C異常等の即時無効化後に許容対象の失敗だけでは復旧しないことを確認します。

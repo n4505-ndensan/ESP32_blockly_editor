@@ -23,7 +23,10 @@ errorはnull、または`{code,message,blockId}`。
 実行中の個別手動操作も409で拒否する。プログラムの検証失敗では出力を変更しない。
 
 devicesイベントは`{ts,bootId,revision,devices:[{id,state}]}`。
-出力のstateは`{on}`、センサは`{value:number|null,status:"ok"|"unavailable"|"stale"}`。
+出力のstateは`{on}`、センサは`{value,status,reason}`。
+`value` is a number for `ok`/`held` and null for `unavailable`/`stale` (ADR 0007, ADR 0008).
+`reason` is null while the value is usable, otherwise `no_target`/`sensor_fault`/`disconnected`/`no_data` (ADR 0012).
+The wait does not depend on `reason`.
 実行器の操作も既存のdevices配信に反映する。
 
 プログラム受信はContent-Length付きのapplication/jsonを使う。TCPの分割受信に対応し、

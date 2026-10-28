@@ -1,5 +1,6 @@
 import { css } from "@acab/ecsstatic";
 import { Show, type Component } from "solid-js";
+import { sensorWaitPresentation } from "~/device/sensorPresentation";
 import type { ProgramStatus } from "~/program/types";
 import { deviceSource, deviceStore } from "~/store/deviceStore";
 import { programBusy, programStore } from "~/store/programStore";
@@ -32,12 +33,12 @@ const TopInfoBar: Component = () => {
     statusStore.diagnostic?.message ??
     programStore.error?.message ??
     programStore.state?.error?.message;
-  // The run state names the sensor by id; the label comes from the device list.
+  // The reason comes from the device state; the run state names only the sensor.
   const waiting = () => {
     const id = programStore.state?.waiting?.deviceId;
     if (!id) return undefined;
-    const label = deviceStore.devices.find((d) => d.id === id)?.label ?? id;
-    return `「${label}」の値を待っています。センサの接続を確認してください。`;
+    const device = deviceStore.devices.find((d) => d.id === id);
+    return sensorWaitPresentation(device?.label ?? id, device?.state.reason);
   };
 
   return (
@@ -49,9 +50,13 @@ const TopInfoBar: Component = () => {
           </p>
         </Show>
         <Show when={!message() && waiting()}>
-          {(text) => (
-            <p class={infoText} role="status">
-              {text()}
+          {(wait) => (
+            <p
+              class={infoText}
+              classList={{ [error]: wait().error }}
+              role="status"
+            >
+              {wait().text}
             </p>
           )}
         </Show>

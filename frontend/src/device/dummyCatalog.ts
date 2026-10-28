@@ -63,5 +63,6 @@ export const dummySensorValues = (tick: number, devices: readonly Device[]) =>
             ? Number((24.5 + Math.sin(tick / 5)).toFixed(2))
             : Math.round(300 + 100 * Math.sin(tick / 3)),
         status: "ok" as const,
+        reason: null,
       },
     }));

@@ -9,7 +9,7 @@
 
 namespace
 {
-    // 状態は出力部品ならon、センサならvalueだけを載せる。
+    // Outputs carry on; sensors carry value, status and reason.
     void writeDeviceState(JsonObject state, size_t index, const DeviceState &value)
     {
         if (deviceDescriptor(index).kind == DeviceKind::Output)
@@ -18,10 +18,17 @@ namespace
         {
             const auto sample = freshSample(value.sample, millis());
             state["status"] = sensorStatusName(sample.status);
+            // reason is a device-independent category, set only while the value is not usable (ADR 0012).
             if (sensorValueUsable(sample))
+            {
                 state["value"] = sample.value;
+                state["reason"] = nullptr;
+            }
             else
+            {
                 state["value"] = nullptr;
+                state["reason"] = sensorReasonName(sample.reason);
+            }
         }
     }
 
