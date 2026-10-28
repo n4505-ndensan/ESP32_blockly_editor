@@ -48,12 +48,16 @@ export type ProgramStatus =
   | "completed"
   | "stopped"
   | "error";
+/** Sensor a running program is waiting on until it reports a usable value. */
+export type SensorWait = { deviceId: string; blockId: string };
 export type ProgramState = {
   bootId: string;
   revision: number;
   runId: number;
   state: ProgramStatus;
   error: ProgramError | null;
+  /** Absent from firmware that predates sensor waits. */
+  waiting?: SensorWait | null;
 };
 export const isActive = (state?: ProgramStatus) =>
   state === "starting" || state === "running" || state === "stopping";

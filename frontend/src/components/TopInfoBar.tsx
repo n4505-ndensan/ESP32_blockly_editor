@@ -1,7 +1,7 @@
 import { css } from "@acab/ecsstatic";
 import { Show, type Component } from "solid-js";
 import type { ProgramStatus } from "~/program/types";
-import { deviceSource } from "~/store/deviceStore";
+import { deviceSource, deviceStore } from "~/store/deviceStore";
 import { programBusy, programStore } from "~/store/programStore";
 import { statusStore } from "~/store/statusStore";
 
@@ -32,6 +32,13 @@ const TopInfoBar: Component = () => {
     statusStore.diagnostic?.message ??
     programStore.error?.message ??
     programStore.state?.error?.message;
+  // The run state names the sensor by id; the label comes from the device list.
+  const waiting = () => {
+    const id = programStore.state?.waiting?.deviceId;
+    if (!id) return undefined;
+    const label = deviceStore.devices.find((d) => d.id === id)?.label ?? id;
+    return `「${label}」の値を待っています。センサの接続を確認してください。`;
+  };
 
   return (
     <div class={barRoot}>
@@ -41,7 +48,14 @@ const TopInfoBar: Component = () => {
             {message()}
           </p>
         </Show>
-        <Show when={statusStore.validated && !message()}>
+        <Show when={!message() && waiting()}>
+          {(text) => (
+            <p class={infoText} role="status">
+              {text()}
+            </p>
+          )}
+        </Show>
+        <Show when={statusStore.validated && !message() && !waiting()}>
           <p class={infoText} role="status">
             ブロックに問題はありません。
           </p>
@@ -78,7 +92,10 @@ const ProgramStatus: Component = () => {
         ? "実機未接続"
         : !programStore.known
           ? "実行状態を確認中…"
-          : labels[programStore.state!.state]}
+          : programStore.state!.state === "running" &&
+              programStore.state!.waiting
+            ? "センサ待ち"
+            : labels[programStore.state!.state]}
     </span>
   );
 };

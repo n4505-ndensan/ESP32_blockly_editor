@@ -11,9 +11,11 @@
 | POST /api/settings/devices | `{parts}`で部品リスト全体を置き換え。200`{restarting:true}`の後に再起動 |
 | SSE /events | devicesとprogram。接続直後は両方のスナップショット |
 
-実行状態は`{bootId,revision,runId,state,error}`。
+実行状態は`{bootId,revision,runId,state,error,waiting}`。
 stateはidle/starting/running/stopping/completed/stopped/error。
-errorはnull、または`{code,message,blockId}`。202は受付であり、完了はSSEまたはGETで確認する。
+errorはnull、または`{code,message,blockId}`。
+`waiting` is null, or `{deviceId,blockId}` while a running program waits for a usable sensor value (ADR 0011).
+202は受付であり、完了はSSEまたはGETで確認する。
 開始要求は自動再送しない。停止は冪等。
 
 プログラムのエラー応答は`{error,message,blockId?}`。

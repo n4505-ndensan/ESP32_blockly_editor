@@ -25,14 +25,15 @@ const EditorArea: Component = () => {
       blockId = diagnostic.blockId;
     else if (programStore.error && revision === attemptRevision)
       blockId = programStore.error.blockId;
+    // Highlights the failing block, or the sensor block a running program waits on.
     else if (
-      current?.error &&
+      (current?.error || current?.waiting) &&
       source &&
       source.bootId === current.bootId &&
       source.runId === current.runId &&
       source.revision === revision
     )
-      blockId = current.error.blockId;
+      blockId = current.error?.blockId ?? current.waiting?.blockId;
     editor()?.highlight(blockId ?? null);
   });
 

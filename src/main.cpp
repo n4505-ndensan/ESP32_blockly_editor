@@ -123,7 +123,7 @@ void loop()
   serviceSettingsRestart();
   tickProgram();
 #ifdef SENSOR_DIAGNOSTICS
-  publishSensorReadFailure();
+  publishSensorWait();
 #endif
 
   if (now - lastSample >= SENSOR_INTERVAL_MS)

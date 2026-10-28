@@ -147,15 +147,36 @@ static void test_short_circuit_does_not_read_bad_sensor()
     TEST_ASSERT_EQUAL(0, devices.reads);
     TEST_ASSERT_EQUAL((int)EngineState::Completed, (int)engine->state());
 }
-static void test_sensor_failure_stops_and_reports_source()
+static void test_sensor_failure_waits_and_resumes()
 {
     devices.valid = false;
     load("if_else");
+    devices.on = true; // Set after start's allOff to observe that waiting keeps outputs.
+    tickUntilDone(10);
+    TEST_ASSERT_EQUAL((int)EngineState::Running, (int)engine->state());
+    TEST_ASSERT_NOT_NULL(engine->sensorWait());
+    TEST_ASSERT_EQUAL_STRING("distance", engine->sensorWait()->blockId);
+    TEST_ASSERT_EQUAL(10, devices.reads); // One read per tick, then yields.
+    TEST_ASSERT_TRUE(devices.on);
+    TEST_ASSERT_EQUAL(1, devices.offs);
+    TEST_ASSERT_EQUAL(0, devices.writes);
+    devices.valid = true;
+    devices.sensor = 300;
     tickUntilDone();
-    TEST_ASSERT_EQUAL((int)EngineState::Error, (int)engine->state());
-    TEST_ASSERT_EQUAL_STRING("sensor_unavailable", engine->error().code);
-    TEST_ASSERT_EQUAL_STRING("distance", engine->error().blockId);
-    TEST_ASSERT_FALSE(devices.on);
+    TEST_ASSERT_EQUAL((int)EngineState::Completed, (int)engine->state());
+    TEST_ASSERT_NULL(engine->sensorWait());
+    TEST_ASSERT_FALSE(devices.on); // The else branch ran with the recovered value.
+}
+static void test_stop_while_waiting_for_sensor()
+{
+    devices.valid = false;
+    load("if_else");
+    engine->tick();
+    TEST_ASSERT_NOT_NULL(engine->sensorWait());
+    stopped = true;
+    engine->tick();
+    TEST_ASSERT_EQUAL((int)EngineState::Stopped, (int)engine->state());
+    TEST_ASSERT_NULL(engine->sensorWait());
     TEST_ASSERT_EQUAL(2, devices.offs);
 }
 static void test_arithmetic_failure()
@@ -244,6 +265,25 @@ static void test_start_stop_admission()
     life.finish(EngineState::Completed, Error{});
     TEST_ASSERT_EQUAL((int)RunStatus::Completed, (int)life.snapshot().state);
 }
+static void test_waiting_sensor_revisions_and_clears()
+{
+    Lifecycle life;
+    TEST_ASSERT_TRUE(life.acceptStart());
+    TEST_ASSERT_TRUE(life.markRunning());
+    const auto revision = life.snapshot().revision;
+    TEST_ASSERT_FALSE(life.setWaiting(nullptr, nullptr));
+    TEST_ASSERT_TRUE(life.setWaiting("distance", "d"));
+    TEST_ASSERT_EQUAL(revision + 1, life.snapshot().revision);
+    TEST_ASSERT_FALSE(life.setWaiting("distance", "d"));
+    TEST_ASSERT_TRUE(life.setWaiting("distance", "d2"));
+    TEST_ASSERT_TRUE(life.setWaiting(nullptr, nullptr));
+    TEST_ASSERT_NULL(life.snapshot().waiting.deviceId);
+    TEST_ASSERT_TRUE(life.setWaiting("distance", "d"));
+    life.requestStop();
+    life.finish(EngineState::Stopped, Error{});
+    TEST_ASSERT_NULL(life.snapshot().waiting.deviceId);
+    TEST_ASSERT_EQUAL_STRING("", life.snapshot().waiting.blockId);
+}
 static void test_stop_cancels_a_partially_received_run()
 {
     Lifecycle life;
@@ -301,6 +341,22 @@ static void test_state_json_serializes_after_snapshot_destruction()
     TEST_ASSERT_EQUAL_STRING("divide", decoded["error"]["blockId"].as<const char *>());
     writeState(doc.to<JsonVariant>(), "test-boot", RunSnapshot{});
     TEST_ASSERT_TRUE(doc["error"].isNull());
+    TEST_ASSERT_TRUE(doc["waiting"].isNull());
+}
+static void test_state_json_owns_waiting_sensor()
+{
+    JsonDocument doc;
+    {
+        RunSnapshot snapshot;
+        snapshot.state = RunStatus::Running;
+        snapshot.waiting.deviceId = "distance";
+        strcpy(snapshot.waiting.blockId, "sensor");
+        writeState(doc.to<JsonVariant>(), "test-boot", snapshot);
+        memset(snapshot.waiting.blockId, 'x', 6);
+    }
+    TEST_ASSERT_TRUE(doc["error"].isNull());
+    TEST_ASSERT_EQUAL_STRING("distance", doc["waiting"]["deviceId"].as<const char *>());
+    TEST_ASSERT_EQUAL_STRING("sensor", doc["waiting"]["blockId"].as<const char *>());
 }
 static void test_failure_json_owns_diagnostics()
 {
@@ -396,7 +452,7 @@ static void test_distance_held_clock_wrap_and_notifications()
     TEST_ASSERT_EQUAL((int)SensorStatus::Stale, (int)stale.status);
     TEST_ASSERT_TRUE(sensorChanged(held, stale, 1));
 }
-static void test_engine_uses_held_value_and_stops_at_expiry()
+static void test_engine_uses_held_value_and_waits_at_expiry()
 {
     struct SampleDevices : FakeDevices
     {
@@ -423,9 +479,14 @@ static void test_engine_uses_held_value_and_stops_at_expiry()
     TEST_ASSERT_EQUAL((int)EngineState::Running, (int)engine->state());
     hardware.now = 1000;
     engine->tick();
-    TEST_ASSERT_EQUAL((int)EngineState::Error, (int)engine->state());
-    TEST_ASSERT_EQUAL_STRING("distance", engine->error().blockId);
-    TEST_ASSERT_FALSE(hardware.on);
+    TEST_ASSERT_EQUAL((int)EngineState::Running, (int)engine->state());
+    TEST_ASSERT_NOT_NULL(engine->sensorWait());
+    TEST_ASSERT_TRUE(hardware.on);
+    hardware.sample = updateDistanceSample(hardware.sample, DistanceReadResult::Valid, 50, 1100);
+    hardware.now = 1100;
+    engine->tick();
+    TEST_ASSERT_EQUAL((int)EngineState::Running, (int)engine->state());
+    TEST_ASSERT_NULL(engine->sensorWait());
     engine.reset(); // Hardware lifetime must exceed the engine's lifetime.
 }
 // 部品リストの規則。画面側（frontend/tests/settings.test.ts）と同じ判定を確かめる。
@@ -496,7 +557,8 @@ int runTests()
     RUN_TEST(test_completion_keeps_output);
     RUN_TEST(test_repeat);
     RUN_TEST(test_short_circuit_does_not_read_bad_sensor);
-    RUN_TEST(test_sensor_failure_stops_and_reports_source);
+    RUN_TEST(test_sensor_failure_waits_and_resumes);
+    RUN_TEST(test_stop_while_waiting_for_sensor);
     RUN_TEST(test_arithmetic_failure);
     RUN_TEST(test_empty_forever_budget_and_stop);
     RUN_TEST(test_stop_while_waiting);
@@ -505,10 +567,12 @@ int runTests()
     RUN_TEST(test_until);
     RUN_TEST(test_sensor_freshness_and_epsilon);
     RUN_TEST(test_start_stop_admission);
+    RUN_TEST(test_waiting_sensor_revisions_and_clears);
     RUN_TEST(test_stop_cancels_a_partially_received_run);
     RUN_TEST(test_strict_json_input);
     RUN_TEST(test_state_json_owns_error_block_id);
     RUN_TEST(test_state_json_serializes_after_snapshot_destruction);
+    RUN_TEST(test_state_json_owns_waiting_sensor);
     RUN_TEST(test_failure_json_owns_diagnostics);
     RUN_TEST(test_sensor_diagnostic_history);
     RUN_TEST(test_sensor_diagnostic_log_transitions);
@@ -516,7 +580,7 @@ int runTests()
     RUN_TEST(test_distance_holds_only_previous_good_value);
     RUN_TEST(test_distance_failure_never_invents_or_resurrects_value);
     RUN_TEST(test_distance_held_clock_wrap_and_notifications);
-    RUN_TEST(test_engine_uses_held_value_and_stops_at_expiry);
+    RUN_TEST(test_engine_uses_held_value_and_waits_at_expiry);
     RUN_TEST(test_default_part_list_round_trips);
     RUN_TEST(test_part_list_rules);
     return UNITY_END();

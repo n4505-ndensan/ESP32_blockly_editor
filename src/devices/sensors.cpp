@@ -11,6 +11,14 @@
 
 namespace
 {
+    // A sensor that has not answered for this long is initialized again, at most once per interval (ADR 0011).
+    constexpr uint32_t RECONNECT_INTERVAL_MS = 1000;
+    // VL53L1X boot wait during a reconnect. Short enough that loop() keeps serving STOP and SSE.
+    constexpr uint16_t RECONNECT_BOOT_TIMEOUT_MS = 20;
+    // Adafruit's AMG8833 begin() waits this long after its reset; a reconnect skips reads instead.
+    constexpr uint32_t THERMAL_SETTLE_MS = 100;
+    constexpr uint8_t AMG8833_ADDRESS = 0x68;
+
     // I2Cの1組につき、各種類のセンサは1個まで（アドレスが固定のため）。
     struct BusSensors
     {
@@ -19,6 +27,9 @@ namespace
         Adafruit_AMG88xx thermalSensor;
         bool distanceInitialized = false, thermalInitialized = false;
         SensorSample distanceSample, thermalSample;
+        // Last measurement read over I2C regardless of its quality, or last reconnect attempt.
+        uint32_t distanceAliveAt = 0, thermalAliveAt = 0;
+        bool thermalSettling = false;
 #ifdef SENSOR_DIAGNOSTICS
         SensorDiagnosticHistory distanceHistory;
         int distanceCause = 6;
@@ -89,7 +100,58 @@ namespace
         serializeJson(doc, Serial);
         Serial.println();
     }
+    void logReconnect(uint8_t index, const char *sensor, bool initialized)
+    {
+        JsonDocument doc;
+        doc["ts"] = millis();
+        doc["sensor"] = sensor;
+        doc["bus"] = index;
+        doc["initialized"] = initialized;
+        Serial.print("SENSOR_RECONNECT ");
+        serializeJson(doc, Serial);
+        Serial.println();
+    }
 #endif
+
+    void reconnectDistance(uint8_t index, uint32_t now)
+    {
+        BusSensors &bus = sBuses[index];
+        bus.distanceAliveAt = now;
+        // stopContinuous() also clears the library's calibration flag, which init() keeps.
+        bus.distanceSensor.stopContinuous();
+        bus.distanceSensor.setTimeout(RECONNECT_BOOT_TIMEOUT_MS);
+        bus.distanceInitialized = bus.distanceSensor.init();
+        if (bus.distanceInitialized)
+            bus.distanceSensor.startContinuous(100);
+        else
+            bus.distanceSample = updateDistanceSample(bus.distanceSample, DistanceReadResult::FatalFailure, 0, now);
+#ifdef SENSOR_DIAGNOSTICS
+        logReconnect(index, "distance", bus.distanceInitialized);
+#endif
+    }
+
+    bool writeThermal(TwoWire &wire, uint8_t reg, uint8_t value)
+    {
+        wire.beginTransmission(AMG8833_ADDRESS);
+        wire.write(reg);
+        wire.write(value);
+        return wire.endTransmission() == 0;
+    }
+    // Same register writes as Adafruit's begin(): normal mode, initial reset, interrupts off, 10 FPS.
+    void reconnectThermal(uint8_t index, uint32_t now)
+    {
+        BusSensors &bus = sBuses[index];
+        TwoWire &wire = *bus.wire;
+        bus.thermalAliveAt = now;
+        bus.thermalInitialized = writeThermal(wire, 0x00, 0x00) && writeThermal(wire, 0x01, 0x3f) &&
+                                 writeThermal(wire, 0x03, 0x00) && writeThermal(wire, 0x02, 0x00);
+        bus.thermalSettling = bus.thermalInitialized;
+        if (!bus.thermalInitialized)
+            bus.thermalSample.status = SensorStatus::Unavailable;
+#ifdef SENSOR_DIAGNOSTICS
+        logReconnect(index, "thermal", bus.thermalInitialized);
+#endif
+    }
 }
 void initSensors(const SensorBus *buses, size_t count)
 {
@@ -119,7 +181,7 @@ void initSensors(const SensorBus *buses, size_t count)
         }
         if (config.thermal)
         {
-            bus.thermalInitialized = bus.thermalSensor.begin(0x68, bus.wire);
+            bus.thermalInitialized = bus.thermalSensor.begin(AMG8833_ADDRESS, bus.wire);
             Serial.println(bus.thermalInitialized ? "AMG8833 initialized" : "AMG8833 unavailable");
         }
 #ifdef SENSOR_DIAGNOSTICS
@@ -145,20 +207,26 @@ void initSensors(const SensorBus *buses, size_t count)
     }
     delay(1000);
 }
-SensorSample readTemperature(uint8_t index)
+static SensorSample sampleTemperature(uint8_t index)
 {
     BusSensors &bus = sBuses[index];
     SensorSample &thermalSample = bus.thermalSample;
     if (!bus.thermalInitialized)
         return thermalSample;
+    if (bus.thermalSettling)
+    {
+        if (millis() - bus.thermalAliveAt < THERMAL_SETTLE_MS)
+            return thermalSample;
+        bus.thermalSettling = false;
+    }
     TwoWire &wire = *bus.wire;
     // Adafruit's readPixels discards transfer errors. Check every transfer here.
     uint8_t pixels[128];
     for (uint8_t offset = 0; offset < sizeof(pixels); offset += 32)
     {
-        wire.beginTransmission(0x68);
+        wire.beginTransmission(AMG8833_ADDRESS);
         wire.write(static_cast<uint8_t>(0x80 + offset));
-        if (wire.endTransmission(false) != 0 || wire.requestFrom(uint8_t(0x68), uint8_t(32)) != 32)
+        if (wire.endTransmission(false) != 0 || wire.requestFrom(AMG8833_ADDRESS, uint8_t(32)) != 32)
         {
             while (wire.available())
                 wire.read();
@@ -177,9 +245,19 @@ SensorSample readTemperature(uint8_t index)
         highest = std::max(highest, raw * 0.25f);
     }
     thermalSample = {highest, millis(), SensorStatus::Ok};
+    bus.thermalAliveAt = thermalSample.updatedAt;
     return thermalSample;
 }
-SensorSample readDistance(uint8_t index)
+SensorSample readTemperature(uint8_t index)
+{
+    const SensorSample sample = sampleTemperature(index);
+    const uint32_t now = millis();
+    if (now - sBuses[index].thermalAliveAt < RECONNECT_INTERVAL_MS)
+        return sample;
+    reconnectThermal(index, now);
+    return sBuses[index].thermalSample;
+}
+static SensorSample sampleDistance(uint8_t index)
 {
     BusSensors &bus = sBuses[index];
     VL53L1X &distanceSensor = bus.distanceSensor;
@@ -216,6 +294,9 @@ SensorSample readDistance(uint8_t index)
                             : valid                         ? DistanceReadResult::Valid
                             : transient                     ? DistanceReadResult::TransientFailure
                                                             : DistanceReadResult::FatalFailure;
+        // A result read over I2C is a measurement whatever its quality, so it postpones a reconnect.
+        if (distanceSensor.last_status == 0)
+            bus.distanceAliveAt = millis();
         distanceSample = updateDistanceSample(distanceSample, result, static_cast<float>(value), millis());
 #ifdef SENSOR_DIAGNOSTICS
         readI2c = distanceSensor.last_status;
@@ -232,4 +313,15 @@ SensorSample readDistance(uint8_t index)
     logDistance(index, cause, ready, success, ready, readyI2c, readI2c, rangeStatus);
 #endif
     return distanceSample;
+}
+// Reconnects when no measurement has been read for an interval: init failed, the bus fails,
+// or the sensor stopped ranging after a reset. Optical failures still count as measurements.
+SensorSample readDistance(uint8_t index)
+{
+    const SensorSample sample = sampleDistance(index);
+    const uint32_t now = millis();
+    if (now - sBuses[index].distanceAliveAt < RECONNECT_INTERVAL_MS)
+        return sample;
+    reconnectDistance(index, now);
+    return sBuses[index].distanceSample;
 }

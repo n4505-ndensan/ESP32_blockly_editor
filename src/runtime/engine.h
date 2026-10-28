@@ -17,6 +17,10 @@ public:
     EngineState state() const { return state_; }
     const Error &error() const { return error_; }
     uint8_t lastSteps() const { return steps_; }
+    // The sensor node the running program is waiting on for a usable value, or nullptr.
+    const Node *sensorWait() const {
+        return state_ == EngineState::Running && sensorWait_ != NONE ? &program_->nodes[sensorWait_] : nullptr;
+    }
 private:
     enum class Code : uint8_t { Value, Unary, Binary, ShortCircuit, Set, Wait, Jump, IfFalse, RepeatBegin, RepeatEnd };
     struct Instruction { Code code; uint16_t node; uint16_t target; };
@@ -24,7 +28,7 @@ private:
     Instruction code_[MAX_CODE];
     double values_[MAX_DEPTH + 1];
     uint32_t repeats_[MAX_DEPTH + 1];
-    uint16_t codeSize_ = 0, pc_ = 0;
+    uint16_t codeSize_ = 0, pc_ = 0, sensorWait_ = NONE;
     uint8_t valueSize_ = 0, repeatSize_ = 0, steps_ = 0;
     bool waiting_ = false;
     uint32_t waitAt_ = 0, waitMs_ = 0;
