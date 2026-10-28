@@ -8,7 +8,7 @@
 
 | 番号                                          | タイトル                                   | ステータス                         |
 | --------------------------------------------- | ------------------------------------------ | ---------------------------------- |
-| [0001](0001-device-state-and-control.md)      | 部品の状態表示と操作                       | 一部置き換え済み（ADR 0006・0007・0009） |
+| [0001](0001-device-state-and-control.md)      | 部品の状態表示と操作                       | 一部置き換え済み（ADR 0006・0007・0009・0013） |
 | [0002](0002-nonblocking-distance-sampling.md) | 距離センサの非ブロッキング読み取り         | 一部置き換え済み（ADR 0007・0011） |
 | [0003](0003-precompressed-web-assets.md)      | Web素材をビルド時にgzip圧縮する            | 一部置き換え済み（ADR 0004）       |
 | [0004](0004-littlefs-web-storage.md)          | Web素材の保存先をLittleFSに移行する        | 一部置き換え済み（ADR 0010）       |
@@ -20,3 +20,4 @@
 | [0010](0010-single-app-partition-layout.md)  | Give the second app slot to LittleFS       | 採用                               |
 | [0011](0011-wait-for-sensor-and-reconnect.md) | Wait for an unusable sensor and reconnect it | Partially replaced (ADR 0012)    |
 | [0012](0012-sensor-failure-reasons.md)        | Keep waiting on unusable sensor values and publish the reason | Accepted          |
+| [0013](0013-setup-status-indicator.md)        | Report setup progress and failures with the kit LEDs and buzzer | Accepted        |

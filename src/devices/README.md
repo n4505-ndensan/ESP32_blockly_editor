@@ -15,8 +15,10 @@ Arduinoに依存しないので、ホストのUnityテスト（`scripts/test_run
 出力の変更は必ず`setDeviceOutput()`を通す。手動操作でもAST実行でも同じ経路にしておくことで、
 変化の発生元にかかわらず`takeDeviceChanges()`が状態をコピーして取得し、同じ形でクライアントへ届く。
 
-起動時は一度すべてONにして点灯・鳴動を確かめた後、必ずOFFにそろえる。
+起動時は必ず全出力をOFFにそろえる。
 状態の正をESP32に置くため、起点の状態が決まっていないと最初の配信が実機とずれる。
+Setup then reports its progress and failures on the kit LEDs and buzzer through `setDeviceOutput()`
+([setup status indicator](../../docs/setup-status-indicator.md), ADR 0013).
 
 センサの読み取り本体は`sensors.cpp`に置く。I2Cの初期化と各センサ固有の手順はここに閉じ込め、
 `devices.cpp`へは値・取得時刻・有効性を持つ`SensorSample`を返す。表の`read`にそのまま渡せる形にしておくことで、

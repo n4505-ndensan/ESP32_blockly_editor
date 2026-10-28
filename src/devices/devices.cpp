@@ -50,7 +50,7 @@ namespace
     }
 }
 
-void initDevices()
+bool initDevices()
 {
     loadPartList(sParts);
     sDeviceCount = sParts.count;
@@ -85,17 +85,15 @@ void initDevices()
             continue;
 
         pinMode(sDevices[i].pin, OUTPUT);
-        setDeviceOutput(i, true);
     }
 
-    // 起動の合図として一度すべて動かし、必ずOFFにそろえてから先へ進む。
+    // 必ずOFFにそろえてから先へ進む。
     // 状態の正をESP32に置くので、起点の状態が決まっていないと最初の配信が実機とずれる。
-    delay(400);
-
     turnDeviceOutputsOff();
 
-    initSensors(buses, busCount);
+    const bool sensorsInitialized = initSensors(buses, busCount);
     delay(400);
+    return sensorsInitialized;
 }
 
 const PartList &activePartList()

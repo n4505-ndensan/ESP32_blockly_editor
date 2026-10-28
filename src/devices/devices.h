@@ -48,7 +48,8 @@ struct DeviceSnapshot {
 
 // 保存された部品リスト（無ければ最初のキット）を読み込み、
 // 全部品のピン設定と初期化を行い、状態をOFFにそろえる。
-void initDevices();
+// Returns false if a sensor in the part list failed to initialize.
+bool initDevices();
 
 // 起動時に読み込んだ部品リスト。保存し直しても再起動するまで変わらない。
 const PartList &activePartList();
